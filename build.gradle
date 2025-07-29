@@ -3,6 +3,8 @@ plugins {
 	id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
 	id 'org.springframework.boot' version '3.5.4'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id("org.jooq.jooq-codegen-gradle") version "3.19.11"
+	id("org.flywaydb.flyway") version "10.10.0"
 }
 
 group = 'com.example'
@@ -10,7 +12,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -35,6 +37,38 @@ kotlin {
 		freeCompilerArgs.addAll '-Xjsr305=strict'
 	}
 }
+
+jooq {
+	configuration {
+		jdbc {
+			driver = "org.postgresql.Driver"
+			url = "jdbc:postgresql://localhost:5432/postgres"
+			user = "postgres"
+			password = "password"
+		}
+		generator {
+			database {
+				name = "org.jooq.meta.postgres.PostgresDatabase"
+				inputSchema = "public"
+				excludes = "flyway_schema_history"
+			}
+			target {
+				packageName = "org.example.db"
+			}
+		}
+	}
+}
+
+flyway {
+	driver = "org.postgresql.Driver"
+	url = "jdbc:postgresql://localhost:5432/postgres"
+	user = "postgres"
+	password = "password"
+	schemas = ["public"]
+	cleanDisabled = false
+}
+
+
 
 tasks.named('test') {
 	useJUnitPlatform()
