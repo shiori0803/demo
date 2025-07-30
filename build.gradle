@@ -3,8 +3,7 @@ plugins {
 	id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
 	id 'org.springframework.boot' version '3.5.4'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id("org.jooq.jooq-codegen-gradle") version "3.19.11"
-	id("org.flywaydb.flyway") version "10.10.0"
+	id "org.jooq.jooq-codegen-gradle" version "3.19.24"
 }
 
 group = 'com.example'
@@ -30,8 +29,12 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	jooqCodegen 'org.postgresql:postgresql'
 }
 
+// テンプレートデフォルト設定
+// KotlinプロジェクトがJavaライブラリと連携する際に、より厳密なNull Safetyチェックを有効にし、
+// コンパイル時に潜在的なNullPointerExceptionバグを早期に発見することを目的とした設定
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll '-Xjsr305=strict'
@@ -40,9 +43,10 @@ kotlin {
 
 jooq {
 	configuration {
+
 		jdbc {
 			driver = "org.postgresql.Driver"
-			url = "jdbc:postgresql://localhost:5432/postgres"
+			url = "jdbc:postgresql://localhost:5432/mydb"
 			user = "postgres"
 			password = "password"
 		}
@@ -50,25 +54,16 @@ jooq {
 			database {
 				name = "org.jooq.meta.postgres.PostgresDatabase"
 				inputSchema = "public"
-				excludes = "flyway_schema_history"
+				includes = ".*"
 			}
+
 			target {
-				packageName = "org.example.db"
+				packageName = "db"
+				directory = "build/generated-src/jooq"
 			}
 		}
 	}
 }
-
-flyway {
-	driver = "org.postgresql.Driver"
-	url = "jdbc:postgresql://localhost:5432/postgres"
-	user = "postgres"
-	password = "password"
-	schemas = ["public"]
-	cleanDisabled = false
-}
-
-
 
 tasks.named('test') {
 	useJUnitPlatform()
