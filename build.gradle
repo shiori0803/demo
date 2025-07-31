@@ -24,6 +24,7 @@ dependencies {
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -59,10 +60,27 @@ jooq {
 
 			target {
 				packageName = "db"
+				// 、jOOQのコード生成タスク（jooqCodegen）が、生成したソースコードをどこに書き出すか
 				directory = "build/generated-src/jooq"
 			}
 		}
 	}
+}
+
+// Gradleのコンパイルタスク（compileKotlinやcompileJava）が、
+// どのディレクトリ内のソースコードをコンパイル対象とするか
+sourceSets {
+	main {
+		java {
+			srcDirs += files('build/generated-src/jooq')
+		}
+	}
+}
+
+// compileKotlin タスクが実行される前に、
+// 必ず jooqCodegen タスクが実行されるように強制する
+tasks.named('compileKotlin') {
+	dependsOn tasks.named('jooqCodegen')
 }
 
 tasks.named('test') {
