@@ -4,8 +4,8 @@ version: '3.8'
 x-template: &flyway-template
   image: flyway/flyway:latest
   volumes:
-    - ./flyway/migrations:/flyway/sql # マイグレーション用SQLファイルの格納先
-    - ./flyway/conf:/flyway/conf # 設定ファイルの格納先
+    - ./src/main/resources/db/migrations:/flyway/sql # マイグレーション用SQLファイルの格納先
+    - ./conf:/flyway/conf # 設定ファイルの格納先
   depends_on:
     - postgres
 
