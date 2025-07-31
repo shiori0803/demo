@@ -1,0 +1,42 @@
+@startuml
+!theme plain
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+hide empty members
+
+entity "authors" as authors {
+  + **id**: SERIAL <<PK>>
+  --
+  name: VARCHAR(255) <<NOT NULL>>
+  birth_date: DATE
+  .. check ..
+  {field}.birth_date < 現在日
+}
+
+entity "books" as books {
+  + **id**: SERIAL <<PK>>
+  --
+  title: VARCHAR(255) <<NOT NULL>>
+  price: DECIMAL <<NOT NULL>>
+  publication_status: VARCHAR(50) <<NOT NULL>>
+  .. check ..
+  {field}.price >= 0
+  {field}.publication_status IN ('0:未出版', '1:出版済')
+  .. trigger ..
+  1:出版済から0:未出版への変更不可
+}
+
+entity "book_authors" as book_authors {
+  + **book_id**: BIGINT <<PK, FK>>
+  + **author_id**: BIGINT <<PK, FK>>
+}
+
+authors ||--o{ book_authors : "writes"
+books ||--o{ book_authors : "has"
+
+book_authors }o--|| authors
+book_authors }o--|| books
+
+@enduml

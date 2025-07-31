@@ -1,0 +1,41 @@
+version: '3.8'
+
+# flywayに関する共通設定を定義するためのセクション(定義の再利用可)
+x-template: &flyway-template
+  image: flyway/flyway:latest
+  volumes:
+    - ../src/main/resources/db/migrations:/flyway/sql # マイグレーション用SQLファイルの格納先
+    - ./flyway:/flyway/conf # 設定ファイルの格納先
+  depends_on:
+    - postgres
+
+services:
+  # docker-compose run --rm flyway-clean
+  flyway-clean:
+    <<: *flyway-template
+    command: clean
+
+  # docker-compose run --rm flyway-migrate
+  flyway-migrate:
+    <<: *flyway-template
+    command: migrate
+
+  # docker-compose run --rm flyway-info
+  flyway-info:
+    <<: *flyway-template
+    command: info
+
+  postgres:
+    image: postgres:16
+    container_name: my-postgres
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
