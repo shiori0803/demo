@@ -1,1 +1,26 @@
-"# demo" 
+#　ER図
+```mermaid　
+erDiagram
+    authors {
+        BIGSERIAL id PK
+        VARCHAR first_name
+        VARCHAR middle_name
+        VARCHAR last_name
+        DATE birth_date
+    }
+
+    books {
+        BIGSERIAL id PK
+        VARCHAR title
+        INT price
+        INT publication_status
+    }
+
+    book_authors {
+        BIGINT book_id PK,FK
+        BIGINT author_id PK,FK
+    }
+
+    authors ||--o{ book_authors : "has"
+    books ||--o{ book_authors : "has"
+```
