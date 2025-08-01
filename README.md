@@ -1,8 +1,6 @@
-```markdown
-#　ER図
-```
+# ER図
 
-```mermaid　
+```mermaid
 erDiagram
     authors {
         BIGSERIAL id PK
