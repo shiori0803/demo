@@ -1,5 +1,6 @@
 #　ER図
-```mermaid　
+```mermaid
+info
 erDiagram
     authors {
         BIGSERIAL id PK
