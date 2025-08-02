@@ -1,11 +1,11 @@
-package com.example.demo.service
+package com.example.demo.repository
 import com.example.demo.dto.BookDto
 import db.Tables.BOOKS
 import org.jooq.DSLContext
-import org.springframework.stereotype.Service
+import org.springframework.stereotype.Repository
 
-@Service
-class BookService(private val dslContext: DSLContext) {
+@Repository
+class BookRepository(private val dslContext: DSLContext) {
     /**
      * 著作全件検索
      */

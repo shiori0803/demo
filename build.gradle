@@ -11,13 +11,17 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(17)
 	}
 }
 
 repositories {
+	maven { url "https://jitpack.io" }
 	mavenCentral()
 }
+
+def mockkVersion = "1.13.11"
+def testcontainersVersion = "1.20.0"
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jooq'
@@ -25,17 +29,27 @@ dependencies {
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.jetbrains.kotlin:kotlin-reflect'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	// jOOQのKotlin拡張関数ライブラリ
+	implementation 'org.jooq:jooq-kotlin:3.19.24'
+
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'org.postgresql:postgresql'
+
+	// Spring Bootの統合テスト用 (JUnit 5を含むため残す)
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Mockk
+	testImplementation "io.mockk:mockk:${mockkVersion}"
+
+	// Testcontainers
+	testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+	testImplementation "org.testcontainers:postgresql"
+	testImplementation "org.testcontainers:junit-jupiter"
+
+	// jooqCodegen用のPostgreSQLドライバ
 	jooqCodegen 'org.postgresql:postgresql'
 }
 
-// テンプレートデフォルト設定
-// KotlinプロジェクトがJavaライブラリと連携する際に、より厳密なNull Safetyチェックを有効にし、
-// コンパイル時に潜在的なNullPointerExceptionバグを早期に発見することを目的とした設定
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll '-Xjsr305=strict'
@@ -60,15 +74,12 @@ jooq {
 
 			target {
 				packageName = "db"
-				// 、jOOQのコード生成タスク（jooqCodegen）が、生成したソースコードをどこに書き出すか
 				directory = "build/generated-src/jooq"
 			}
 		}
 	}
 }
 
-// Gradleのコンパイルタスク（compileKotlinやcompileJava）が、
-// どのディレクトリ内のソースコードをコンパイル対象とするか
 sourceSets {
 	main {
 		java {
@@ -77,8 +88,6 @@ sourceSets {
 	}
 }
 
-// compileKotlin タスクが実行される前に、
-// 必ず jooqCodegen タスクが実行されるように強制する
 tasks.named('compileKotlin') {
 	dependsOn tasks.named('jooqCodegen')
 }
