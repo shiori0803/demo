@@ -5,18 +5,18 @@ import com.example.demo.dto.AuthorDto
 import db.tables.Authors.AUTHORS
 import org.assertj.core.api.Assertions.assertThat
 import org.jooq.DSLContext
-import org.jooq.impl.DefaultDSLContext
+import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.dao.DataIntegrityViolationException
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.LocalDate
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.MethodSource
 import java.util.stream.Stream
 
 @SpringBootTest
@@ -36,31 +36,80 @@ class AuthorRepositoryTest @Autowired constructor(
     // ----------------- テストデータとヘルパー関数 -----------------
 
     companion object {
+        // @MethodSourceは静的メソッドを探す。Kotlinだと"companion object"内に記載して@JvmStaticが必要
         @JvmStatic
         fun updateTestData(): Stream<Arguments> {
-            val initialAuthor = AuthorDto(id = 999L, firstName = "Hanako", middleName = "Ann", lastName = "Suzuki", birthDate = LocalDate.of(1995, 8, 25))
+            val initialAuthor = AuthorDto(
+                id = 999L,
+                firstName = "Hanako",
+                middleName = "Ann",
+                lastName = "Suzuki",
+                birthDate = LocalDate.of(1995, 8, 25)
+            )
 
             return Stream.of(
                 Arguments.of(
                     "全項目を更新",
                     initialAuthor,
-                    initialAuthor.copy(firstName = "花子", middleName = "アン", lastName = "鈴木", birthDate = LocalDate.of(1995, 8, 26))
+                    initialAuthor.copy(
+                        firstName = "花子",
+                        middleName = "アン",
+                        lastName = "鈴木",
+                        birthDate = LocalDate.of(1995, 8, 26)
+                    )
                 ),
                 Arguments.of("firstNameのみを更新", initialAuthor, initialAuthor.copy(firstName = "太郎")),
-                Arguments.of("middleNameをnullから値有りに更新", initialAuthor.copy(middleName = null), initialAuthor.copy(middleName = "アン")),
+                Arguments.of(
+                    "middleNameをnullから値有りに更新",
+                    initialAuthor.copy(middleName = null),
+                    initialAuthor.copy(middleName = "アン")
+                ),
                 Arguments.of("middleNameのみを更新", initialAuthor, initialAuthor.copy(middleName = "マリー")),
-                Arguments.of("birthDateのみを更新", initialAuthor, initialAuthor.copy(birthDate = LocalDate.now().minusDays(1)))
+                Arguments.of(
+                    "birthDateのみを更新",
+                    initialAuthor,
+                    initialAuthor.copy(birthDate = LocalDate.now().minusDays(1))
+                )
             )
         }
     }
 
     /**
      * 正常に登録ができるテストデータ
+     *  - 全項目値有
+     *  - null許容項目のみnull、その他値有
+     *  - id以外全項目完全一致レコードの重複登録不可、1レコード目から1項目ずつ値を変更して重複しないデータとし、それらが正常に登録できることを確認（重複エラーの確認は別で実施）
      */
     private fun correctAuthorsData(): List<AuthorDto> {
         return listOf(
-            AuthorDto(id = 1L, firstName = "Hanako", middleName = "Ann", lastName = "Suzuki", birthDate = LocalDate.now().minusDays(1)),
-            AuthorDto(id = 2L, firstName = "taro", middleName = null, lastName = "yamada", birthDate = LocalDate.of(1980, 5, 10))
+            AuthorDto(
+                id = 1L,
+                firstName = "Hanako",
+                middleName = "Ann",
+                lastName = "Suzuki",
+                birthDate = LocalDate.now().minusDays(1)
+            ),
+            AuthorDto(
+                id = 2L,
+                firstName = "taro",
+                middleName = null,
+                lastName = "Suzuki",
+                birthDate = LocalDate.now().minusDays(1)
+            ),
+            AuthorDto(
+                id = 3L,
+                firstName = "Hanako",
+                middleName = "Ann",
+                lastName = "鈴木",
+                birthDate = LocalDate.now().minusDays(1)
+            ),
+            AuthorDto(
+                id = 4L,
+                firstName = "Hanako",
+                middleName = "Ann",
+                lastName = "Suzuki",
+                birthDate = LocalDate.now().minusDays(2)
+            )
         )
     }
 
@@ -101,7 +150,7 @@ class AuthorRepositoryTest @Autowired constructor(
 
     /**
      * 生年月日が現在の日付よりも未来の場合は登録されないことを確認する
-    */
+     */
     @Test
     fun `insertAuthor - Violation of birthDate condition`() {
         // 現在日の生年月日を持つテストデータを作成
@@ -120,27 +169,85 @@ class AuthorRepositoryTest @Autowired constructor(
         assertThat(countAfterFailure).isEqualTo(0L)
     }
 
-
+    /**
+     * 各更新可能なカラムを一つずつ正しく更新できるか確認
+     */
     @ParameterizedTest(name = "updateAuthor - update field {0}")
     @MethodSource("updateTestData")
     fun `updateAuthor - Correctly updating the field {0}`(
-        testName: String,//各テストケースの実行時に表示される名前を定義(ex:updateAuthor - update field name)
+        testName: String,
         initialData: AuthorDto,
         updatedData: AuthorDto
     ) {
         // テストデータの作成、データ登録後にIDを返却
-        val authorInDb = insertAndGetAuthor(initialData)
+        val authorInDb = insertAndGetAuthor(initialData.copy(id = null))
 
-        // 更新用DTOのIDを、挿入されたIDに上書き
-        val updatedAuthorWithId = updatedData.copy(id = authorInDb.id)
+        // 更新するフィールドと値のマップを構築
+        val updatesMap = mutableMapOf<String, Any?>()
 
-        // テストメソッドの実行
-        val updatedCount = authorRepository.updateAuthor(updatedAuthorWithId)
+        // updatedData DTOから変更されたフィールドのみをマップに追加
+        // middleNameがnullに更新されるケースも考慮
+        if (updatedData.firstName != initialData.firstName) {
+            updatesMap["firstName"] = updatedData.firstName
+        }
+        // middleNameはOptional<String>ではなくString?なので、nullへの更新も考慮
+        // updatedData.middleNameがnullで、initialData.middleNameがnullでない場合、または
+        // updatedData.middleNameがnullでなく、initialData.middleNameと異なる場合
+        if (updatedData.middleName != initialData.middleName) {
+            updatesMap["middleName"] = updatedData.middleName
+        }
+        if (updatedData.lastName != initialData.lastName) {
+            updatesMap["lastName"] = updatedData.lastName
+        }
+        if (updatedData.birthDate != initialData.birthDate) {
+            updatesMap["birthDate"] = updatedData.birthDate
+        }
+
+        // テストメソッドの実行 (新しいシグネチャに合わせて呼び出す)
+        val updatedCount = authorRepository.updateAuthor(authorInDb.id!!, updatesMap)
 
         // 更新件数が1件のみであることの確認
         assertThat(updatedCount).isEqualTo(1)
+
         // 変更後のDBのデータが更新値と一致していることの確認
-        val retrievedAuthor = ctx.selectFrom(AUTHORS).where(AUTHORS.ID.eq(authorInDb.id)).fetchOneInto(AuthorDto::class.java)
-        assertThat(retrievedAuthor).isEqualTo(updatedAuthorWithId)
+        val retrievedAuthor =
+            ctx.selectFrom(AUTHORS).where(AUTHORS.ID.eq(authorInDb.id)).fetchOneInto(AuthorDto::class.java)
+
+        // DBから取得したretrievedAuthorのIDをupdatedDataにコピーして比較する
+        // updatedDataはテストケースで期待される最終状態を表すDTOであるため、
+        // DBから取得したデータと直接比較するのが最もシンプル。
+        // ただし、updatedDataのIDはダミー値なので、DBから取得したIDに合わせる必要がある。
+        assertThat(retrievedAuthor).isEqualTo(updatedData.copy(id = authorInDb.id))
+    }
+
+    /**
+     * 全項目が同じ著者レコードが登録出来ないことを確認する
+     */
+    @Test
+    fun `updateAuthor - same author cannot be saved`() {
+        // テストデータ
+        val inputAuthors = correctAuthorsData()
+
+        // 最初の著者情報を保存(middleName有)
+        val savedAuthorWithMiddleName = authorRepository.insertAuthor(inputAuthors[0])
+        assertThat(savedAuthorWithMiddleName).isNotNull
+
+        // 同一情報のデータを登録する
+        val duplicateAuthorWithMiddleName = inputAuthors[0].copy(id = 9999L)
+        // DataIntegrityViolationExceptionがスローされることを確認
+        assertThrows(DataIntegrityViolationException::class.java) {
+            authorRepository.insertAuthor(duplicateAuthorWithMiddleName)
+        }
+
+        // 最初の著者情報を保存(middleNameがnull)
+        val savedAuthorWithoutMiddleName = authorRepository.insertAuthor(inputAuthors[1])
+        assertThat(savedAuthorWithoutMiddleName).isNotNull
+
+        // 同一情報のデータを登録する
+        val duplicateAuthorWithoutMiddleName = inputAuthors[0].copy(id = 99999L)
+        // DataIntegrityViolationExceptionがスローされることを確認
+        assertThrows(DataIntegrityViolationException::class.java) {
+            authorRepository.insertAuthor(duplicateAuthorWithoutMiddleName)
+        }
     }
 }
