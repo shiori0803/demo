@@ -4,9 +4,7 @@
 erDiagram
     authors {
         BIGSERIAL id PK
-        VARCHAR first_name
-        VARCHAR middle_name
-        VARCHAR last_name
+        VARCHAR name
         DATE birth_date
     }
 

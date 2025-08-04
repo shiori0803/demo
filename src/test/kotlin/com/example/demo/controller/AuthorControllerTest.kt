@@ -37,16 +37,12 @@ class AuthorControllerTest {
         // Given
         val request = InsertAuthorRequest(
             id = null, // 新規作成のためIDはnull
-            firstName = "Haruki",
-            middleName = "Jun",
-            lastName = "Murakami",
+            name = "Haruki Murakami", // name に変更
             birthDate = LocalDate.of(1949, 1, 12)
         )
         val createdAuthorDto = AuthorDto(
             id = 1L, // サービスが生成するID
-            firstName = "Haruki",
-            middleName = "Jun",
-            lastName = "Murakami",
+            name = "Haruki Murakami", // name に変更
             birthDate = LocalDate.of(1949, 1, 12)
         )
 
@@ -64,9 +60,7 @@ class AuthorControllerTest {
             authorService.registerAuthor(
                 AuthorDto(
                     id = null, // コントローラから渡されるIDはnull
-                    firstName = request.firstName!!,
-                    middleName = request.middleName,
-                    lastName = request.lastName!!,
+                    name = request.name!!, // name に変更
                     birthDate = request.birthDate!!
                 )
             )
@@ -78,9 +72,7 @@ class AuthorControllerTest {
         // Given
         val request = InsertAuthorRequest(
             id = 100L, // IDが提供されている
-            firstName = "Haruki",
-            middleName = null,
-            lastName = "Murakami",
+            name = "Haruki Murakami", // name に変更
             birthDate = LocalDate.of(1949, 1, 12)
         )
 
@@ -99,9 +91,7 @@ class AuthorControllerTest {
         // Given
         val request = InsertAuthorRequest(
             id = null,
-            firstName = "Duplicate",
-            middleName = null,
-            lastName = "Author",
+            name = "Duplicate Author", // name に変更
             birthDate = LocalDate.of(1990, 5, 10)
         )
 
@@ -125,9 +115,7 @@ class AuthorControllerTest {
         // Given
         val authorId = 1L
         val request = UpdateAuthorRequest(
-            firstName = "Updated",
-            middleName = null,
-            lastName = "Name",
+            name = "Updated Name", // name に変更
             birthDate = LocalDate.of(2000, 1, 1)
         )
         val updatedCount = 1
@@ -150,9 +138,7 @@ class AuthorControllerTest {
         // Given
         val authorId = 999L // 存在しないID
         val request = UpdateAuthorRequest(
-            firstName = "NonExistent",
-            middleName = null,
-            lastName = "Author",
+            name = "NonExistent Author", // name に変更
             birthDate = LocalDate.of(1990, 5, 10)
         )
         val updatedCount = 0
@@ -175,9 +161,7 @@ class AuthorControllerTest {
         val requestBodyId = 2L // パス変数と異なるID
         val request = UpdateAuthorRequest(
             id = requestBodyId,
-            firstName = "Test",
-            middleName = null,
-            lastName = "Mismatch",
+            name = "Test Mismatch", // name に変更
             birthDate = LocalDate.of(2000, 1, 1)
         )
 
