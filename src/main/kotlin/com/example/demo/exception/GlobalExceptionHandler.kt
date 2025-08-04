@@ -58,6 +58,48 @@ class GlobalExceptionHandler {
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
+    // AuthorNotFoundException (著者が見つからない) を処理
+    @ExceptionHandler(AuthorNotFoundException::class) // 追加
+    fun handleAuthorNotFoundException( // 追加
+        ex: AuthorNotFoundException, // 追加
+        request: WebRequest // 追加
+    ): ResponseEntity<ErrorResponse> { // 追加
+        val errorResponse = ErrorResponse( // 追加
+            status = HttpStatus.NOT_FOUND.value(), // 404 Not Found
+            message = ex.message ?: "指定されたリソースが見つかりません。",
+            details = request.getDescription(false)
+        )
+        return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND) // 追加
+    } // 追加
+
+    // BookNotFoundException (書籍が見つからない) を処理
+    @ExceptionHandler(BookNotFoundException::class) // 追加
+    fun handleBookNotFoundException( // 追加
+        ex: BookNotFoundException, // 追加
+        request: WebRequest // 追加
+    ): ResponseEntity<ErrorResponse> { // 追加
+        val errorResponse = ErrorResponse( // 追加
+            status = HttpStatus.NOT_FOUND.value(), // 404 Not Found
+            message = ex.message ?: "指定された書籍が見つかりません。",
+            details = request.getDescription(false)
+        )
+        return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND) // 追加
+    } // 追加
+
+    // InvalidPublicationStatusChangeException (出版ステータスの不正な変更) を処理
+    @ExceptionHandler(InvalidPublicationStatusChangeException::class) // 追加
+    fun handleInvalidPublicationStatusChangeException( // 追加
+        ex: InvalidPublicationStatusChangeException, // 追加
+        request: WebRequest // 追加
+    ): ResponseEntity<ErrorResponse> { // 追加
+        val errorResponse = ErrorResponse( // 追加
+            status = HttpStatus.BAD_REQUEST.value(), // 400 Bad Request
+            message = ex.message ?: "出版ステータスの変更が無効です。",
+            details = request.getDescription(false)
+        )
+        return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST) // 追加
+    } // 追加
+
     // その他の予期せぬエラーを処理
     @ExceptionHandler(Exception::class)
     fun handleGlobalException(

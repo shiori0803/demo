@@ -16,8 +16,7 @@ class AuthorRepository(private val dslContext: DSLContext) {
      * @return 挿入された著者のID
      */
     fun insertAuthor(authorDto: AuthorDto): Long? {
-        val record: AuthorsRecord? = dslContext.insertInto(AUTHORS)
-            .set(AUTHORS.NAME, authorDto.name)
+        val record: AuthorsRecord? = dslContext.insertInto(AUTHORS).set(AUTHORS.NAME, authorDto.name)
             .set(AUTHORS.BIRTH_DATE, authorDto.birthDate).returning(AUTHORS.ID).fetchOne()
         return record?.id
     }
@@ -44,5 +43,14 @@ class AuthorRepository(private val dslContext: DSLContext) {
         }
 
         return dslContext.update(AUTHORS).set(jooqUpdateMap).where(AUTHORS.ID.eq(id)).execute()
+    }
+
+    /**
+     * 指定された著者IDが存在するかどうかを確認します。
+     * @param id 検索する著者ID
+     * @return 存在する場合はtrue、しない場合はfalse
+     */
+    fun existsById(id: Long): Boolean {
+        return dslContext.selectCount().from(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOne(0, Long::class.java) ?: 0L > 0L
     }
 }
