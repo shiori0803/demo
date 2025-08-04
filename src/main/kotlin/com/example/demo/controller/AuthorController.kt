@@ -18,47 +18,31 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/authors")
 class AuthorController(private val authorService: AuthorService) { // AuthorService を注入
 
-    /**
-     * 新しい著者を作成するAPI
-     * POST /api/authors
-     */
     @PostMapping
-    fun createAuthor(@Valid @RequestBody insertAuthorRequest: InsertAuthorRequest): ResponseEntity<AuthorDto> { // 戻り値をAuthorDtoに
-
-        // リクエストデータのバリデーションと受取
-        // 新規作成リクエストにIDが含まれている場合はエラーとする
+    fun createAuthor(@Valid @RequestBody insertAuthorRequest: InsertAuthorRequest): ResponseEntity<AuthorDto> {
         require(insertAuthorRequest.id == null) { "ID must be null for new author creation" }
+
         val authorDto = AuthorDto(
-            id = null, // ここを 0L から null に変更
-            firstName = insertAuthorRequest.firstName!!,
-            middleName = insertAuthorRequest.middleName,
-            lastName = insertAuthorRequest.lastName!!,
+            id = null,
+            name = insertAuthorRequest.name!!,
             birthDate = insertAuthorRequest.birthDate!!
         )
 
-        // サービス層を呼び出し、エラーハンドリングはGlobalExceptionHandlerに委任
         val createdAuthor = authorService.registerAuthor(authorDto)
 
-        // 成功した場合、CREATEDステータスと作成された著者データを返す
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(createdAuthor)
     }
 
-
-    /**
-     * 既存の著者を更新するAPI
-     * /api/authors/{id}
-     */
     @PatchMapping("/{id}")
     fun updateAuthor(@PathVariable id: Long, @RequestBody updateAuthorRequest: UpdateAuthorRequest): ResponseEntity<Any> {
         require(updateAuthorRequest.id == null || updateAuthorRequest.id == id) { "ID in request body must be null or match path variable ID" }
 
         val updates = mutableMapOf<String, Any?>()
 
-        updateAuthorRequest.firstName?.let { updates["firstName"] = it }
-        updates["middleName"] = updateAuthorRequest.middleName // middleName は null で更新可能
-        updateAuthorRequest.lastName?.let { updates["lastName"] = it }
+        //nullでない値が提供された場合のみマップに追加
+        updateAuthorRequest.name?.let { updates["name"] = it }
         updateAuthorRequest.birthDate?.let { updates["birthDate"] = it }
 
         val updatedCount = authorService.partialUpdateAuthor(id, updates)

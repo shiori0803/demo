@@ -9,12 +9,9 @@ import java.time.LocalDate
  * APIリクエストのバリデーションに使用されます。
  */
 data class InsertAuthorRequest(
-    val id: Long? = null, // 新規作成時はIDが不要なためnullable
-    @field:NotNull(message = "firstNameは必須項目です")
-    val firstName: String?,
-    val middleName: String?,
-    @field:NotNull(message = "lastNameは必須項目です")
-    val lastName: String?,
+    val id: Long? = null,
+    @field:NotNull(message = "nameは必須項目です")
+    val name: String?,
     @field:NotNull(message = "birthDateは必須項目です")
     @field:Past(message = "birthDateは過去の日付である必要があります")
     val birthDate: LocalDate?
