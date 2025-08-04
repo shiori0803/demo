@@ -1,4 +1,5 @@
 # ER図
+
 ```mermaid
 erDiagram
     authors {
@@ -24,7 +25,3 @@ erDiagram
     authors ||--o{ book_authors : "has"
     books ||--o{ book_authors : "has"
 ```
-
-# memo
-- Intelijでmermaidの描画を確認できるプラグイン
-  - [Jetbrains Marketplace - Mermaid](https://plugins.jetbrains.com/plugin/20146-mermaid)
