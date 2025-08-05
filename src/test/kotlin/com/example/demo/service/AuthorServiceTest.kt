@@ -73,10 +73,9 @@ class AuthorServiceTest {
 
         // Then
         // AuthorAlreadyExistsExceptionがスローされることを検証
-        val exception = assertThrows<AuthorAlreadyExistsException> {
+        assertThrows<AuthorAlreadyExistsException> {
             authorService.registerAuthor(authorDto)
         }
-        assertThat(exception.message).isEqualTo("この著者は既に登録されています。")
         verify(exactly = 1) { authorRepository.insertAuthor(authorDto) }
     }
 
@@ -118,13 +117,27 @@ class AuthorServiceTest {
 
         // Then
         // AuthorNotFoundExceptionがスローされることを検証
-        val exception = assertThrows<AuthorNotFoundException> {
+        assertThrows<AuthorNotFoundException> {
             authorService.partialUpdateAuthor(authorId, updates)
         }
-        assertThat(exception.message).isEqualTo("指定された著者が見つかりません。")
         // updateAuthorは呼ばれるが、findByIdは呼ばれないことを検証
         verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
         verify(exactly = 0) { authorRepository.findById(any()) }
     }
-}
 
+    @Test
+    fun `partialUpdateAuthor should throw IllegalArgumentException when updates map is empty`() {
+        // Given
+        val authorId = 1L
+        val updates = emptyMap<String, Any?>()
+
+        // When & Then
+        // updatesマップが空の場合、IllegalArgumentExceptionがスローされることを検証
+        val exception = assertThrows<IllegalArgumentException> {
+            authorService.partialUpdateAuthor(authorId, updates)
+        }
+        // メッセージの検証はGlobalExceptionHandlerTestに任せ、ここではビジネスロジックが正しく例外をスローすることのみを検証
+        verify(exactly = 0) { authorRepository.updateAuthor(any(), any()) }
+        verify(exactly = 0) { authorRepository.findById(any()) }
+    }
+}

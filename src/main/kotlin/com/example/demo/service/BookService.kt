@@ -11,6 +11,8 @@ import com.example.demo.repository.BookRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import com.example.demo.dto.response.BookWithAuthorsResponse
+import com.example.demo.exception.BookAlreadyExistsException
+import org.springframework.dao.DataIntegrityViolationException
 
 /**
  * 書籍データ操作用サービスクラス
@@ -26,14 +28,6 @@ open class BookService(
     private val bookAuthorsRepository: BookAuthorsRepository
 ) {
 
-    /**
-     * 新しい書籍を登録し、関連する著者情報を紐付けます。
-     * この操作はトランザクションとして実行されます。
-     * @param bookDto 登録する書籍データ
-     * @param authorIds 関連付ける著者IDのリスト
-     * @return 登録された書籍データ (IDと著者IDを含む)
-     * @throws AuthorNotFoundException 存在しない著者IDが含まれている場合
-     */
     @Transactional
     open fun registerBook(bookDto: BookDto, authorIds: List<Long>): BookWithAuthorsResponse {
         // 1. 著者IDの存在チェック
@@ -44,8 +38,12 @@ open class BookService(
         }
 
         // 2. booksテーブルへのデータ登録
-        val insertedBookId = bookRepository.insertBook(bookDto)
-            ?: throw IllegalStateException("書籍の登録に失敗しました。")
+        val insertedBookId = try {
+            bookRepository.insertBook(bookDto)
+        } catch (e: DataIntegrityViolationException) {
+            // 重複キー違反の場合、BookAlreadyExistsExceptionをスロー
+            throw BookAlreadyExistsException("book.already.exists")
+        } ?: throw IllegalStateException("書籍の登録に失敗しました。")
 
         // 3. book_authorsテーブルへのデータ登録
         authorIds.forEach { authorId ->
@@ -88,18 +86,18 @@ open class BookService(
     @Transactional
     open fun updateBook(id: Long, updates: Map<String, Any?>, newAuthorIds: List<Long>?): BookDto {
         // 1. 書籍の存在チェックと現在のデータ取得
-        val existingBook = bookRepository.findById(id) ?: throw BookNotFoundException("書籍ID: $id が見つかりません。")
+        val existingBook = bookRepository.findById(id) ?: throw BookNotFoundException("book.not.found")
 
         // 2. publicationStatusの変更ロジック
         val newPublicationStatus = updates["publicationStatus"] as? Int
         if (existingBook.publicationStatus == 1 && newPublicationStatus == 0) {
-            throw InvalidPublicationStatusChangeException("出版済から未出版への変更はできません。")
+            throw InvalidPublicationStatusChangeException("book.publication.status.invalid.change")
         }
 
         // 3. 著者IDの存在チェック (newAuthorIdsが指定された場合のみ)
         newAuthorIds?.forEach { authorId ->
             if (!authorRepository.existsById(authorId)) {
-                throw AuthorNotFoundException("著者ID: $authorId が見つかりません。")
+                throw AuthorNotFoundException("author.not.found")
             }
         }
 
@@ -111,7 +109,7 @@ open class BookService(
             if (updatedCount == 0) {
                 // updatesマップが空でないのに更新件数が0の場合、書籍が見つからないか、他の問題
                 // findByIdで存在確認済みなので、ここに来ることは稀だが、念のため
-                throw BookNotFoundException("書籍ID: $id の更新に失敗しました。")
+                throw BookNotFoundException("book.update.error")
             }
         }
 
@@ -122,6 +120,6 @@ open class BookService(
         }
 
         // 更新後の書籍データを取得して返す (最新の状態をクライアントに返すため)
-        return bookRepository.findById(id) ?: throw IllegalStateException("更新後の書籍データの取得に失敗しました。")
+        return bookRepository.findById(id) ?: throw IllegalStateException("book.get.new.data.error")
     }
 }

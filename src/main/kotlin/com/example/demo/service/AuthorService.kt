@@ -22,7 +22,7 @@ class AuthorService(private val authorRepository: AuthorRepository) {
             val insertedId = authorRepository.insertAuthor(authorDto)
             return authorDto.copy(id = insertedId!!)
         } catch (e: DataIntegrityViolationException) {
-            throw AuthorAlreadyExistsException("この著者は既に登録されています。")
+            throw AuthorAlreadyExistsException("author.already.exists")
         }
     }
 
@@ -36,22 +36,22 @@ class AuthorService(private val authorRepository: AuthorRepository) {
     fun partialUpdateAuthor(id: Long, updates: Map<String, Any?>): AuthorDto {
         // 更新する項目がない場合は、IllegalArgumentExceptionをスロー
         if (updates.isEmpty()) {
-            throw IllegalArgumentException("更新する項目がありません。")
+            throw IllegalArgumentException("invalid.argument.no.updates")
         }
 
         // birthDateの未来日付チェックを追加
         updates["birthDate"]?.let {
             if (it is LocalDate && it.isAfter(LocalDate.now())) {
-                throw IllegalArgumentException("birthDate: 生年月日は過去の日付である必要があります。")
+                throw IllegalArgumentException("invalid.argument.birthdate.future")
             }
         }
 
         val updatedCount = authorRepository.updateAuthor(id, updates)
 
         if (updatedCount > 0) {
-            return authorRepository.findById(id) ?: throw AuthorNotFoundException("更新後に著者が見つかりませんでした。")
+            return authorRepository.findById(id) ?: throw AuthorNotFoundException("author.not.found")
         } else {
-            throw AuthorNotFoundException("指定された著者が見つかりません。")
+            throw AuthorNotFoundException("author.not.found")
         }
     }
 
@@ -68,7 +68,7 @@ class AuthorService(private val authorRepository: AuthorRepository) {
 
         // 著者が見つからない場合はAuthorNotFoundExceptionをスロー
         if (authorDto == null) {
-            throw AuthorNotFoundException("指定された著者が見つかりません。")
+            throw AuthorNotFoundException("author.not.found")
         }
 
         val bookDtos = authorRepository.findBooksByAuthorId(authorId)
