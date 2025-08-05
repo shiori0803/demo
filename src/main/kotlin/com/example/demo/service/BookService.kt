@@ -3,13 +3,14 @@ package com.example.demo.service
 import com.example.demo.dto.BookAuthorDto
 import com.example.demo.dto.BookDto
 import com.example.demo.exception.AuthorNotFoundException
-import com.example.demo.exception.BookNotFoundException // 追加
-import com.example.demo.exception.InvalidPublicationStatusChangeException // 追加
+import com.example.demo.exception.BookNotFoundException
+import com.example.demo.exception.InvalidPublicationStatusChangeException
 import com.example.demo.repository.AuthorRepository
 import com.example.demo.repository.BookAuthorsRepository
 import com.example.demo.repository.BookRepository
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional // トランザクション管理用
+import org.springframework.transaction.annotation.Transactional
+import com.example.demo.dto.response.BookWithAuthorsResponse
 
 /**
  * 書籍データ操作用サービスクラス
@@ -30,12 +31,11 @@ open class BookService(
      * この操作はトランザクションとして実行されます。
      * @param bookDto 登録する書籍データ
      * @param authorIds 関連付ける著者IDのリスト
-     * @return 登録された書籍データ (IDを含む)
+     * @return 登録された書籍データ (IDと著者IDを含む)
      * @throws AuthorNotFoundException 存在しない著者IDが含まれている場合
      */
     @Transactional
-    open // このメソッド全体をトランザクションとして実行
-    fun registerBook(bookDto: BookDto, authorIds: List<Long>): BookDto {
+    open fun registerBook(bookDto: BookDto, authorIds: List<Long>): BookWithAuthorsResponse {
         // 1. 著者IDの存在チェック
         authorIds.forEach { authorId ->
             if (!authorRepository.existsById(authorId)) {
@@ -45,9 +45,7 @@ open class BookService(
 
         // 2. booksテーブルへのデータ登録
         val insertedBookId = bookRepository.insertBook(bookDto)
-            ?: throw IllegalStateException("書籍の登録に失敗しました。") // IDが取得できない場合は異常
-
-        val createdBook = bookDto.copy(id = insertedBookId)
+            ?: throw IllegalStateException("書籍の登録に失敗しました。")
 
         // 3. book_authorsテーブルへのデータ登録
         authorIds.forEach { authorId ->
@@ -57,7 +55,14 @@ open class BookService(
             bookAuthorsRepository.insertBookAuthor(bookAuthorDto)
         }
 
-        return createdBook
+        // 4. 新しいレスポンスDTOを構築して返す
+        return BookWithAuthorsResponse(
+            id = insertedBookId,
+            title = bookDto.title,
+            price = bookDto.price,
+            publicationStatus = bookDto.publicationStatus,
+            authorIds = authorIds
+        )
     }
 
     /**

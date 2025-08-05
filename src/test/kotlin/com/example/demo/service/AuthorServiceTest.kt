@@ -2,6 +2,7 @@ package com.example.demo.service
 
 import com.example.demo.dto.AuthorDto
 import com.example.demo.exception.AuthorAlreadyExistsException
+import com.example.demo.exception.AuthorNotFoundException
 import com.example.demo.repository.AuthorRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -79,64 +80,51 @@ class AuthorServiceTest {
         verify(exactly = 1) { authorRepository.insertAuthor(authorDto) }
     }
 
-    /**
-     * 正常なデータ更新の確認
-     */
+    // --- partialUpdateAuthor メソッドのテスト ---
+
     @Test
-    fun `partialUpdateAuthor should return updated count on successful update`() {
+    fun `partialUpdateAuthor should return updated AuthorDto on successful update`() {
         // Given
-        val id = 1L
-        val updates = mapOf("name" to "Updated Name", "birthDate" to LocalDate.of(1995, 1, 1))
-        val updatedRows = 1
+        val authorId = 1L
+        val updates = mapOf("name" to "Updated Name")
+        val updatedCount = 1
+        val updatedAuthorDto = AuthorDto(id = authorId, name = "Updated Name", birthDate = LocalDate.now())
 
         // When
-        // authorRepository.updateAuthorが呼ばれたら、updatedRowsを返すようにモックを設定
-        every { authorRepository.updateAuthor(id, updates) } returns updatedRows
+        // authorRepository.updateAuthorが成功した件数（1）を返すようにモックを設定
+        every { authorRepository.updateAuthor(authorId, updates) } returns updatedCount
+        // updateAuthor呼び出し後に、findByIdが更新後のAuthorDtoを返すようにモックを設定
+        every { authorRepository.findById(authorId) } returns updatedAuthorDto
 
-        val result = authorService.partialUpdateAuthor(id, updates)
+        val result = authorService.partialUpdateAuthor(authorId, updates)
 
         // Then
-        assertThat(result).isEqualTo(updatedRows)
-        verify(exactly = 1) { authorRepository.updateAuthor(id, updates) }
+        assertThat(result).isEqualTo(updatedAuthorDto)
+        // updateAuthorとfindByIdがそれぞれ1回呼ばれたことを検証
+        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
+        verify(exactly = 1) { authorRepository.findById(authorId) }
     }
 
-    /**
-     * 存在しない著者IDを指定した更新を実施した際の確認
-     */
     @Test
-    fun `partialUpdateAuthor should return 0 when no author is found for update`() {
+    fun `partialUpdateAuthor should throw AuthorNotFoundException when no author is found for update`() {
         // Given
-        val id = 999L // 存在しないID
-        val updates = mapOf("name" to "NonExistent")
-        val updatedRows = 0
+        val authorId = 999L
+        val updates = mapOf("name" to "NonExistent Author")
+        val updatedCount = 0
 
         // When
-        every { authorRepository.updateAuthor(id, updates) } returns updatedRows
-
-        val result = authorService.partialUpdateAuthor(id, updates)
-
-        // Then
-        assertThat(result).isEqualTo(updatedRows)
-        verify(exactly = 1) { authorRepository.updateAuthor(id, updates) }
-    }
-
-    /**
-     * データ更新内容が既存データと重複する場合の確認
-     */
-    @Test
-    fun `partialUpdateAuthor should propagate DataIntegrityViolationException from repository`() {
-        // Given
-        val id = 1L
-        val updates = mapOf("name" to "Conflicting Name")
-
-        // When
-        every { authorRepository.updateAuthor(any(), any()) } throws DataIntegrityViolationException("Duplicate key on update")
+        // authorRepository.updateAuthorが更新件数0を返すようにモックを設定
+        every { authorRepository.updateAuthor(authorId, updates) } returns updatedCount
 
         // Then
-        val exception = assertThrows<DataIntegrityViolationException> {
-            authorService.partialUpdateAuthor(id, updates)
+        // AuthorNotFoundExceptionがスローされることを検証
+        val exception = assertThrows<AuthorNotFoundException> {
+            authorService.partialUpdateAuthor(authorId, updates)
         }
-        assertThat(exception.message).isEqualTo("Duplicate key on update")
-        verify(exactly = 1) { authorRepository.updateAuthor(id, updates) }
+        assertThat(exception.message).isEqualTo("指定された著者が見つかりません。")
+        // updateAuthorは呼ばれるが、findByIdは呼ばれないことを検証
+        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
+        verify(exactly = 0) { authorRepository.findById(any()) }
     }
 }
+

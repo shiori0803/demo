@@ -2,17 +2,13 @@ package com.example.demo.controller
 
 import com.example.demo.dto.AuthorDto
 import com.example.demo.dto.request.InsertAuthorRequest
-import com.example.demo.dto.request.UpdateAuthorRequest
-import com.example.demo.service.AuthorService // AuthorService をインポート
+import com.example.demo.dto.request.PatchAuthorRequest
+import com.example.demo.dto.response.AuthorWithBooksResponse
+import com.example.demo.service.AuthorService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/authors")
@@ -23,34 +19,32 @@ class AuthorController(private val authorService: AuthorService) { // AuthorServ
         require(insertAuthorRequest.id == null) { "ID must be null for new author creation" }
 
         val authorDto = AuthorDto(
-            id = null,
-            name = insertAuthorRequest.name!!,
-            birthDate = insertAuthorRequest.birthDate!!
+            id = null, name = insertAuthorRequest.name!!, birthDate = insertAuthorRequest.birthDate!!
         )
 
         val createdAuthor = authorService.registerAuthor(authorDto)
 
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(createdAuthor)
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdAuthor)
     }
 
     @PatchMapping("/{id}")
-    fun updateAuthor(@PathVariable id: Long, @RequestBody updateAuthorRequest: UpdateAuthorRequest): ResponseEntity<Any> {
-        require(updateAuthorRequest.id == null || updateAuthorRequest.id == id) { "ID in request body must be null or match path variable ID" }
+    fun patchAuthor(@PathVariable id: Long, @RequestBody patchAuthorRequest: PatchAuthorRequest): ResponseEntity<AuthorDto> {
+        require(patchAuthorRequest.id == null || patchAuthorRequest.id == id) { "ID in request body must be null or match path variable ID" }
 
         val updates = mutableMapOf<String, Any?>()
 
         //nullでない値が提供された場合のみマップに追加
-        updateAuthorRequest.name?.let { updates["name"] = it }
-        updateAuthorRequest.birthDate?.let { updates["birthDate"] = it }
+        patchAuthorRequest.name?.let { updates["name"] = it }
+        patchAuthorRequest.birthDate?.let { updates["birthDate"] = it }
 
-        val updatedCount = authorService.partialUpdateAuthor(id, updates)
+        val updatedAuthor = authorService.partialUpdateAuthor(id, updates)
 
-        return if (updatedCount > 0) {
-            ResponseEntity.ok(updatedCount)
-        } else {
-            ResponseEntity.notFound().build()
-        }
+        return ResponseEntity.ok(updatedAuthor)
+    }
+
+    @GetMapping("/{authorId}/books")
+    fun getBooksByAuthorId(@PathVariable authorId: Long): ResponseEntity<AuthorWithBooksResponse> {
+        val result = authorService.getAuthorWithBooksResponse(authorId)
+        return ResponseEntity.ok(result)
     }
 }

@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size
  * PATCHリクエストの特性に合わせて、フィールドの存在/nullを区別します。
  */
 @JsonInclude(JsonInclude.Include.NON_ABSENT) // JSONに存在しないフィールドは含めない
-data class UpdateBookRequest(
+data class PatchBookRequest(
     val id: Long? = null, // パス変数でIDを受け取るため、ボディのIDは無視またはチェック用
 
     val title: String?,

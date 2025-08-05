@@ -40,4 +40,5 @@ out/
 .kotlin
 
 ### Credentials ###
-.env
+#本来git管理対象外だが資源pull後にすぐ利用できるように管理対象とする
+#.env

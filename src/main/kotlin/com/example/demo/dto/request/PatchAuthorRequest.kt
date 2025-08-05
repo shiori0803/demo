@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
  * PATCHリクエストの特性に合わせて、Optional<T>を使用してフィールドの存在/nullを区別します。
  */
 @JsonInclude(JsonInclude.Include.NON_ABSENT)
-data class UpdateAuthorRequest(
+data class PatchAuthorRequest(
     val id: Long? = null,
     val name: String?,
     val birthDate: LocalDate?

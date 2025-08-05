@@ -2,8 +2,9 @@ package com.example.demo.controller
 
 import com.example.demo.dto.AuthorDto
 import com.example.demo.dto.request.InsertAuthorRequest
-import com.example.demo.dto.request.UpdateAuthorRequest
+import com.example.demo.dto.request.PatchAuthorRequest
 import com.example.demo.exception.AuthorAlreadyExistsException
+import com.example.demo.exception.AuthorNotFoundException
 import com.example.demo.service.AuthorService
 import io.mockk.every
 import io.mockk.mockk
@@ -90,8 +91,7 @@ class AuthorControllerTest {
     fun `createAuthor should propagate AuthorAlreadyExistsException from service`() {
         // Given
         val request = InsertAuthorRequest(
-            id = null,
-            name = "Duplicate Author", // name に変更
+            id = null, name = "Duplicate Author", // name に変更
             birthDate = LocalDate.of(1990, 5, 10)
         )
 
@@ -108,67 +108,74 @@ class AuthorControllerTest {
         verify(exactly = 1) { authorService.registerAuthor(any()) }
     }
 
-    // --- updateAuthor メソッドのテスト ---
+    // --- patchAuthor メソッドのテスト ---
 
     @Test
-    fun `updateAuthor should return OK status and updated count on successful update`() {
+    fun `patchAuthor should return OK status and updated AuthorDto on successful update`() {
         // Given
         val authorId = 1L
-        val request = UpdateAuthorRequest(
+        val request = PatchAuthorRequest(
             name = "Updated Name", // name に変更
             birthDate = LocalDate.of(2000, 1, 1)
         )
-        val updatedCount = 1
+        // サービスが返す更新後のAuthorDto
+        val updatedAuthorDto = AuthorDto(
+            id = authorId, name = "Updated Name", birthDate = LocalDate.of(2000, 1, 1)
+        )
 
         // When
-        // authorService.partialUpdateAuthorが呼ばれたら、updatedCountを返すようにモックを設定
-        every { authorService.partialUpdateAuthor(authorId, any()) } returns updatedCount
+        // authorService.partialUpdateAuthorが呼ばれたら、updatedAuthorDtoを返すようにモックを設定
+        every { authorService.partialUpdateAuthor(authorId, any()) } returns updatedAuthorDto
 
-        val response: ResponseEntity<Any> = authorController.updateAuthor(authorId, request)
+        val response: ResponseEntity<AuthorDto> = authorController.patchAuthor(authorId, request)
 
         // Then
         assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
-        assertThat(response.body).isEqualTo(updatedCount)
+        assertThat(response.body).isEqualTo(updatedAuthorDto)
         // サービスメソッドが正しい引数で1回呼ばれたことを検証
         verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, any()) }
     }
 
     @Test
-    fun `updateAuthor should return NOT_FOUND status when no author is updated`() {
+    fun `patchAuthor should throw AuthorNotFoundException when no author is updated`() {
         // Given
         val authorId = 999L // 存在しないID
-        val request = UpdateAuthorRequest(
+        val request = PatchAuthorRequest(
             name = "NonExistent Author", // name に変更
             birthDate = LocalDate.of(1990, 5, 10)
         )
-        val updatedCount = 0
 
         // When
-        every { authorService.partialUpdateAuthor(authorId, any()) } returns updatedCount
-
-        val response: ResponseEntity<Any> = authorController.updateAuthor(authorId, request)
+        // authorService.partialUpdateAuthorがAuthorNotFoundExceptionをスローするようにモックを設定
+        every {
+            authorService.partialUpdateAuthor(
+                authorId, any()
+            )
+        } throws AuthorNotFoundException("指定された著者が見つかりません。")
 
         // Then
-        assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
-        assertThat(response.body).isNull()
+        // 例外がコントローラからそのままスローされることを検証
+        val exception = assertThrows<AuthorNotFoundException> {
+            authorController.patchAuthor(authorId, request)
+        }
+        assertThat(exception.message).isEqualTo("指定された著者が見つかりません。")
         verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, any()) }
     }
 
     @Test
-    fun `updateAuthor should throw IllegalArgumentException if ID in request body mismatches path variable ID`() {
+    fun `patchAuthor should throw IllegalArgumentException if ID in request body mismatches path variable ID`() {
         // Given
         val pathId = 1L
         val requestBodyId = 2L // パス変数と異なるID
-        val request = UpdateAuthorRequest(
-            id = requestBodyId,
-            name = "Test Mismatch", // name に変更
+        val request = PatchAuthorRequest(
+            id = requestBodyId, name = "Test Mismatch", // name に変更
             birthDate = LocalDate.of(2000, 1, 1)
         )
 
         // When & Then
         // require条件に違反するため、IllegalArgumentExceptionがスローされることを検証
         val exception = assertThrows<IllegalArgumentException> {
-            authorController.updateAuthor(pathId, request)
+            authorController.patchAuthor(pathId, request)
         }
         assertThat(exception.message).isEqualTo("ID in request body must be null or match path variable ID")
         // サービスメソッドは呼ばれないことを検証
