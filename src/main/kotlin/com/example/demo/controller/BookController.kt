@@ -1,20 +1,14 @@
 package com.example.demo.controller
 
 import com.example.demo.dto.BookDto
-import com.example.demo.dto.request.InsertBookRequest
 import com.example.demo.dto.request.PatchBookRequest
+import com.example.demo.dto.request.RegisterBookRequest
 import com.example.demo.dto.response.BookWithAuthorsResponse
 import com.example.demo.service.BookService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 /**
  * 書籍関連APIのコントローラ
@@ -28,18 +22,18 @@ class BookController(private val bookService: BookService) {
      * POST /api/books
      */
     @PostMapping
-    fun createBook(@Valid @RequestBody insertBookRequest: InsertBookRequest): ResponseEntity<BookWithAuthorsResponse> {
-        require(insertBookRequest.id == null) { "ID must be null for new book creation" }
+    fun createBook(@Valid @RequestBody registerBookRequest: RegisterBookRequest): ResponseEntity<BookWithAuthorsResponse> {
+        require(registerBookRequest.id == null) { "ID must be null for new book creation" }
 
         val bookDto = BookDto(
             id = null,
-            title = insertBookRequest.title!!,
-            price = insertBookRequest.price!!,
-            publicationStatus = insertBookRequest.publicationStatus!!
+            title = registerBookRequest.title!!,
+            price = registerBookRequest.price!!,
+            publicationStatus = registerBookRequest.publicationStatus!!
         )
 
         // サービス層の呼び出しと、新しいレスポンスDTOの取得
-        val createdBook = bookService.registerBook(bookDto, insertBookRequest.authorIds!!)
+        val createdBook = bookService.registerBook(bookDto, registerBookRequest.authorIds!!)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdBook)
     }

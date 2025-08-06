@@ -2,6 +2,9 @@ package com.example.demo.repository
 
 import com.example.demo.BaseIntegrationTest
 import com.example.demo.dto.AuthorDto
+import com.example.demo.dto.BookDto
+import db.Tables.BOOKS
+import db.Tables.BOOK_AUTHORS
 import db.tables.Authors.AUTHORS
 import org.assertj.core.api.Assertions.assertThat
 import org.jooq.DSLContext
@@ -52,23 +55,42 @@ class AuthorRepositoryTest @Autowired constructor(
                 )
             )
         }
+
+        /**
+         * 正常に登録ができるテストデータ
+         */
+        @JvmStatic
+        fun correctAuthorsData(): List<AuthorDto> {
+            return listOf(
+                AuthorDto(
+                    id = 1L, // このIDはDBで無視されるか、自動生成されるIDに置き換えられる
+                    name = "Hanako Ann Suzuki", birthDate = LocalDate.now().minusDays(1)
+                ), AuthorDto(
+                    id = 2L, name = "Taro Yamada", // 異なる名前
+                    birthDate = LocalDate.now().minusDays(1)
+                ), AuthorDto(
+                    id = 3L, name = "Hanako Ann Suzuki", birthDate = LocalDate.now().minusDays(2) // 異なる生年月日
+                )
+            )
+        }
     }
 
     /**
-     * 正常に登録ができるテストデータ
+     * テスト用の書籍データをDBに登録するヘルパーファンクション
      */
-    private fun correctAuthorsData(): List<AuthorDto> {
-        return listOf(
-            AuthorDto(
-                id = 1L, // このIDはDBで無視されるか、自動生成されるIDに置き換えられる
-                name = "Hanako Ann Suzuki", birthDate = LocalDate.now().minusDays(1)
-            ), AuthorDto(
-                id = 2L, name = "Taro Yamada", // 異なる名前
-                birthDate = LocalDate.now().minusDays(1)
-            ), AuthorDto(
-                id = 3L, name = "Hanako Ann Suzuki", birthDate = LocalDate.now().minusDays(2) // 異なる生年月日
-            )
-        )
+    private fun insertBooks(books: List<BookDto>, authorId: Long): List<BookDto> {
+        return books.map { bookDto ->
+            // booksテーブルに登録し、IDを取得
+            val insertedBookId = ctx.insertInto(BOOKS).set(BOOKS.TITLE, bookDto.title).set(BOOKS.PRICE, bookDto.price)
+                .set(BOOKS.PUBLICATION_STATUS, bookDto.publicationStatus).returning(BOOKS.ID).fetchOne()?.id
+            assertThat(insertedBookId).isNotNull
+
+            // book_authorsテーブルに関連を登録
+            ctx.insertInto(BOOK_AUTHORS).set(BOOK_AUTHORS.BOOK_ID, insertedBookId!!)
+                .set(BOOK_AUTHORS.AUTHOR_ID, authorId).execute()
+
+            bookDto.copy(id = insertedBookId)
+        }
     }
 
     /**
@@ -84,8 +106,7 @@ class AuthorRepositoryTest @Autowired constructor(
      * データベースから全ての著者データを取得し、IDをnullにしてソートするヘルパー関数
      */
     private fun getAllAuthorsFromDbNormalized(): List<AuthorDto> {
-        return ctx.selectFrom(AUTHORS).fetchInto(AuthorDto::class.java)
-            .map { it.copy(id = null) } // IDをnullにして比較対象から除外
+        return ctx.selectFrom(AUTHORS).fetchInto(AuthorDto::class.java).map { it.copy(id = null) } // IDをnullにして比較対象から除外
             .sortedBy { it.name + it.birthDate } // 比較のためソート
     }
 
@@ -97,35 +118,103 @@ class AuthorRepositoryTest @Autowired constructor(
         return ctx.selectCount().from(AUTHORS).fetchOne(0, Long::class.java) ?: 0L
     }
 
-    // ----------------- テストメソッド -----------------
-    /**
-     * DB定義の条件に違反しない正しいデータの登録を確認する
-     */
+    // --- findById ファンクションのテスト ---
     @Test
-    fun `insertAuthor - insert correct authors`() {
-        // テストデータ
-        val inputAuthors = correctAuthorsData()
+    fun `findById 正常にデータが登録できることを確認`() {
+        // Given
+        // テスト対象のファンクションを利用してデータ登録
+        val authorDto = AuthorDto(id = null, name = "Test Author", birthDate = LocalDate.of(1990, 1, 1))
+        val insertedId = authorRepository.insertAuthor(authorDto)
+        assertThat(insertedId).isNotNull()
 
-        // テスト対象メソッドの実行
-        inputAuthors.forEach { authorRepository.insertAuthor(it.copy(id = null)) }
+        // When
+        // 登録したデータを取得
+        val foundAuthor = authorRepository.findById(insertedId!!)
 
-        // 挿入したデータをすべて取得し、元データと比較
-        val insertedAuthorsNormalized = getAllAuthorsFromDbNormalized()
-        val expectedAuthorsNormalized = inputAuthors.map { it.copy(id = null) }.sortedBy { it.name + it.birthDate }
-
-        assertThat(insertedAuthorsNormalized).hasSize(inputAuthors.size)
-            .containsExactlyElementsOf(expectedAuthorsNormalized)
-
-        // 存在しないデータがないことを検証
-        val nonExistentAuthor = ctx.selectFrom(AUTHORS).where(AUTHORS.ID.eq(999L)).fetchOneInto(AuthorDto::class.java)
-        assertThat(nonExistentAuthor).isNull()
+        // Then
+        // 登録したデータと取得したデータが一致することを確認
+        assertThat(foundAuthor).isNotNull()
+        assertThat(foundAuthor?.id).isEqualTo(insertedId)
+        assertThat(foundAuthor?.name).isEqualTo(authorDto.name)
+        assertThat(foundAuthor?.birthDate).isEqualTo(authorDto.birthDate)
     }
 
-    /**
-     * 生年月日が現在の日付よりも未来の場合は登録されないことを確認する
-     */
     @Test
-    fun `insertAuthor - Violation of birthDate condition`() {
+    fun `findById 存在しない著者を取得した際に返却値がnullとなることを確認`() {
+        // Given
+        val nonExistentId = 999L
+
+        // When
+        val foundAuthor = authorRepository.findById(nonExistentId)
+
+        // Then
+        assertThat(foundAuthor).isNull()
+    }
+
+    // --- findBooksByAuthorId ファンクションのテスト ---
+
+    @Test
+    fun `findBooksByAuthorId 正常に書籍データが取得できることを確認`() {
+        // Given
+        // テスト用の著者と書籍をDBに登録
+        val author = insertAndGetAuthor(AuthorDto(null, "Test Author", LocalDate.of(1980, 1, 1)))
+        val booksToInsert = listOf(
+            BookDto(null, "Test Book 1", 1000, 1), BookDto(null, "Test Book 2", 2000, 0)
+        )
+        val insertedBooks = insertBooks(booksToInsert, author.id!!)
+
+        // When
+        // テスト対象のファンクションを呼び出し
+        val foundBooks = authorRepository.findBooksByAuthorId(author.id!!)
+
+        // Then
+        // 取得した書籍リストが期待値と一致することを確認
+        assertThat(foundBooks).hasSize(2)
+        assertThat(foundBooks).containsExactlyInAnyOrderElementsOf(insertedBooks)
+    }
+
+    @Test
+    fun `findBooksByAuthorId 著者に書籍が紐づいていない場合は空のリストを返却することを確認`() {
+        // Given
+        // 書籍のない著者だけを登録
+        val author = insertAndGetAuthor(AuthorDto(null, "Test Author", LocalDate.of(1980, 1, 1)))
+
+        // When
+        val foundBooks = authorRepository.findBooksByAuthorId(author.id!!)
+
+        // Then
+        // 空のリストが返却されることを確認
+        assertThat(foundBooks).isEmpty()
+    }
+
+    // --- insertAuthor ファンクションのテスト ---
+    @ParameterizedTest
+    @MethodSource("correctAuthorsData")
+    fun `insertAuthor - 正常に登録が出来ることの確認`(authorDto: AuthorDto) {
+        // テスト対象メソッドの実行
+        val insertedId = authorRepository.insertAuthor(authorDto.copy(id = null))
+        assertThat(insertedId).isNotNull()
+
+        // 挿入したデータを取得し、元データと比較
+        val insertedAuthor = authorRepository.findById(insertedId!!)
+        assertThat(insertedAuthor).isEqualTo(authorDto.copy(id = insertedId))
+    }
+
+    @Test
+    fun `findBooksByAuthorId 存在しない著者を指定した際に空のリストを返却することを確認`() {
+        // Given
+        val nonExistentAuthorId = 999L
+
+        // When
+        val foundBooks = authorRepository.findBooksByAuthorId(nonExistentAuthorId)
+
+        // Then
+        // 空のリストが返却されることを確認
+        assertThat(foundBooks).isEmpty()
+    }
+
+    @Test
+    fun `insertAuthor 生年月日が現在の日付よりも未来の場合は登録されないことを確認`() {
         // 現在日の生年月日を持つテストデータを作成
         val futureAuthor = AuthorDto(
             id = null, name = "未来 著者", birthDate = LocalDate.now()
@@ -140,12 +229,8 @@ class AuthorRepositoryTest @Autowired constructor(
         assertThat(getAuthorCountInDb()).isEqualTo(0L)
     }
 
-    /**
-     * 名前と生年月日が完全に重複するデータが登録出来ないことを確認する。
-     * nameカラムとbirth_dateカラムにUNIQUE制約が適用されていることを検証する。
-     */
     @Test
-    fun `insertAuthor - cannot save duplicate name and birthDate`() {
+    fun `insertAuthor 重複する著者データが登録できないことを確認`() {
         // Given
         val commonName = "重複太郎"
         val commonBirthDate = LocalDate.of(1990, 1, 1)
@@ -178,11 +263,8 @@ class AuthorRepositoryTest @Autowired constructor(
         assertThat(retrievedAuthor).isEqualTo(originalAuthor.copy(id = savedAuthorId))
     }
 
-    /**
-     * 各更新可能なカラムを一括で更新できるか確認
-     */
     @Test
-    fun `updateAuthor - can update all updatable columns at once`() {
+    fun `updateAuthor 更新可能な各カラムを一括で更新できるか確認`() {
         // Given
         val initialAuthor = AuthorDto(
             id = null, name = "Initial Name", birthDate = LocalDate.of(2000, 1, 1)
@@ -213,12 +295,9 @@ class AuthorRepositoryTest @Autowired constructor(
     }
 
 
-    /**
-     * 各更新可能なカラムを一つずつ正しく更新できるか確認
-     */
-    @ParameterizedTest(name = "updateAuthor - update field {0}")
+    @ParameterizedTest
     @MethodSource("updateTestData")
-    fun `updateAuthor - Correctly updating the field {0}`(
+    fun `updateAuthor 更新可能な各カラムを一つずつ正しく更新できるか確認`(
         testName: String, initialData: AuthorDto, updatedData: AuthorDto
     ) {
         // テストデータの作成、データ登録後にIDを返却
@@ -249,12 +328,8 @@ class AuthorRepositoryTest @Autowired constructor(
         assertThat(retrievedAuthor).isEqualTo(updatedData.copy(id = authorInDb.id))
     }
 
-    /**
-     * 名前と生年月日が一致するデータに更新できないことを確認
-     * 既存のUNIQUE制約が更新操作でも正しく機能することを検証する
-     */
     @Test
-    fun `updateAuthor - cannot update to duplicate name and birthDate`() {
+    fun `updateAuthor 重複する著者データに登録できないことを確認`() {
         // Given
         val author1Name = "既存 著者A"
         val author1BirthDate = LocalDate.of(1980, 1, 1)
@@ -287,5 +362,30 @@ class AuthorRepositoryTest @Autowired constructor(
         val retrievedAuthorB =
             ctx.selectFrom(AUTHORS).where(AUTHORS.ID.eq(savedAuthorB.id)).fetchOneInto(AuthorDto::class.java)
         assertThat(retrievedAuthorB).isEqualTo(savedAuthorB) // 著者Bのデータが変更されていないことを確認
+    }
+
+    // --- existsById ファンクションのテスト ---
+    @Test
+    fun `existsById 正常に存在する著者IDがtrueとなることを確認`() {
+        // Given
+        val author = insertAndGetAuthor(AuthorDto(null, "Test Exists", LocalDate.of(1990, 1, 1)))
+
+        // When
+        val exists = authorRepository.existsById(author.id!!)
+
+        // Then
+        assertThat(exists).isTrue()
+    }
+
+    @Test
+    fun `existsById 存在しない著者IDがfalseとなることを確認`() {
+        // Given
+        val nonExistentId = 999L
+
+        // When
+        val exists = authorRepository.existsById(nonExistentId)
+
+        // Then
+        assertThat(exists).isFalse()
     }
 }

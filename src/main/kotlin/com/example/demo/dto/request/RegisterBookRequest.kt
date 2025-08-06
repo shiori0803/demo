@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size
  * 書籍新規登録用リクエストDTO。
  * APIリクエストのバリデーションに使用されます。
  */
-data class InsertBookRequest(
+data class RegisterBookRequest(
     val id: Long? = null,
 
     @field:NotBlank(message = "タイトルは必須項目です")

@@ -23,29 +23,30 @@ class GlobalExceptionHandler(private val messageSource: MessageSource) {
         ex: MethodArgumentNotValidException, request: WebRequest
     ): ResponseEntity<ErrorResponse> {
         val errors = ex.bindingResult.fieldErrors.map { error ->
-            "${error.field}: ${error.defaultMessage}"
+            val resolvedMessage = getMessage(error.defaultMessage ?: "validation.input.error")
+            "${error.field}: $resolvedMessage"
         }
 
         val errorResponse = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
-            message = getMessage("validation.input.error"), // こちらはメッセージキーをそのまま渡す
+            message = getMessage("validation.input.error"),
             details = request.getDescription(false),
             errors = errors
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
-    // AuthorAlreadyExistsException (重複データ) を処理
-    @ExceptionHandler(AuthorAlreadyExistsException::class)
-    fun handleAuthorAlreadyExistsException(
-        ex: AuthorAlreadyExistsException, request: WebRequest
+    // ItemNotFoundException を処理するハンドラを追加
+    @ExceptionHandler(ItemNotFoundException::class)
+    fun handleItemNotFoundException(
+        ex: ItemNotFoundException, request: WebRequest
     ): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
-            status = HttpStatus.CONFLICT.value(),
-            message = getMessage("author.already.exists"),
+            status = HttpStatus.NOT_FOUND.value(),
+            message = getMessage(ex.message!!, arrayOf(ex.itemType)),
             details = request.getDescription(false)
         )
-        return ResponseEntity(errorResponse, HttpStatus.CONFLICT)
+        return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND)
     }
 
     // IllegalArgumentException (例: IDがnullであるべきなのに値がある場合) を処理
@@ -55,36 +56,24 @@ class GlobalExceptionHandler(private val messageSource: MessageSource) {
     ): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
-            message = ex.message ?: getMessage("invalid.argument.generic"),
+            message = ex.message ?: getMessage("validation.invalid.argument.generic"),
             details = request.getDescription(false)
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
-    // AuthorNotFoundException (著者が見つからない)
-    @ExceptionHandler(AuthorNotFoundException::class)
-    fun handleAuthorNotFoundException(
-        ex: AuthorNotFoundException, request: WebRequest
+    @ExceptionHandler(ItemAlreadyExistsException::class)
+    fun handleItemAlreadyExistsException(
+        ex: ItemAlreadyExistsException, request: WebRequest
     ): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
-            status = HttpStatus.NOT_FOUND.value(),
-            message = getMessage("author.not.found"),
-            details = request.getDescription(false)
-        )
-        return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND)
-    }
-
-    // BookAlreadyExistsException (重複データ) を処理
-    @ExceptionHandler(BookAlreadyExistsException::class)
-    fun handleBookAlreadyExistsException(
-        ex: BookAlreadyExistsException, request: WebRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.CONFLICT.value(), // 409 Conflict
-            message = getMessage("book.already.exists"), details = request.getDescription(false)
+            status = HttpStatus.CONFLICT.value(),
+            // 例外からitemTypeを取得し、メッセージにバインド
+            message = getMessage(ex.message!!, arrayOf(ex.itemType)), details = request.getDescription(false)
         )
         return ResponseEntity(errorResponse, HttpStatus.CONFLICT)
     }
+
 
     // その他の予期せぬエラーを処理
     @ExceptionHandler(Exception::class)
@@ -93,7 +82,7 @@ class GlobalExceptionHandler(private val messageSource: MessageSource) {
     ): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            message = getMessage("unexpected.error"),
+            message = getMessage("error.unexpected.error"),
             details = request.getDescription(false) + " - " + ex.localizedMessage
         )
         return ResponseEntity(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR)

@@ -1,8 +1,13 @@
 package com.example.demo.service
 
 import com.example.demo.dto.AuthorDto
-import com.example.demo.exception.AuthorAlreadyExistsException
-import com.example.demo.exception.AuthorNotFoundException
+import com.example.demo.dto.BookDto
+import com.example.demo.dto.response.AuthorResponse
+import com.example.demo.dto.response.AuthorWithBooksResponse
+import com.example.demo.dto.response.BookResponse
+import com.example.demo.exception.ItemAlreadyExistsException
+import com.example.demo.exception.ItemNotFoundException
+import com.example.demo.exception.UnexpectedException
 import com.example.demo.repository.AuthorRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -28,116 +33,184 @@ class AuthorServiceTest {
         authorService = AuthorService(authorRepository)
     }
 
-    /**
-     * 正常なデータ登録の確認
-     */
+    // --- getAuthorWithBooksResponse ファンクションのテスト ---
+
     @Test
-    fun `registerAuthor should return AuthorDto with generated ID on successful insertion`() {
+    fun `getAuthorWithBooksResponse 正常にデータが取得できた場合`() {
         // Given
-        val authorDto = AuthorDto(
-            id = null,
-            name = "Test User",
-            birthDate = LocalDate.of(2000, 1, 1)
+        val authorId = 1L
+        // mockで返される値の設定
+        val authorName = "Haruki Murakami"
+        val authorBirthDate = LocalDate.now().minusDays(1)
+
+        val mockAuthorDto = AuthorDto(id = authorId, name = authorName, birthDate = authorBirthDate)
+        val mockBookDtoList = listOf(
+            BookDto(id = 101L, title = "Norwegian Wood", price = 2000, publicationStatus = 1),
+            BookDto(id = 102L, title = "Kafka on the Shore", price = 2500, publicationStatus = 1)
         )
-        val generatedId = 123L
+
+        // 期待値の設定
+        val expectedAuthorResponse =
+            AuthorResponse(id = authorId, name = authorName, birthDate = authorBirthDate)
+        // mockBookDtoListに含まれる全てのBookDtoオブジェクトをBookResponseに変換してexpectedBookResponsesに代入
+        val expectedBookResponses = mockBookDtoList.map {
+            BookResponse(it.id, it.title, it.price, it.publicationStatus)
+        }
+        val expectedResponse = AuthorWithBooksResponse(author = expectedAuthorResponse, books = expectedBookResponses)
 
         // When
-        // authorRepository.insertAuthorが呼ばれたら、generatedIdを返すようにモックを設定
+        // AuthorRepositoryクラスのファンクションを呼び出しをした時の結果をmock化
+        every { authorRepository.findById(authorId) } returns mockAuthorDto
+        every { authorRepository.findBooksByAuthorId(authorId) } returns mockBookDtoList
+
+        // テスト対象のファンクションを呼び出し
+        val result = authorService.getAuthorWithBooksResponse(authorId)
+
+        // Then
+        // ファンクション実行結果が期待値と同一であることを確認
+        assertThat(result).isEqualTo(expectedResponse)
+        // authorRepository.findById()の呼び出しが1回あったことを確認
+        verify(exactly = 1) { authorRepository.findById(authorId) }
+        // authorRepository.findBooksByAuthorId()の呼び出しが1回あったことを確認
+        verify(exactly = 1) { authorRepository.findBooksByAuthorId(authorId) }
+    }
+
+    @Test
+    fun `getAuthorWithBooksResponse 存在しない著者を指定してItemNotFoundExceptionがスローされる場合`() {
+        // Given
+        val authorId = 999L
+
+        // When
+        every { authorRepository.findById(authorId) } returns null
+
+        // Then
+        // ItemNotFoundExceptionがスローされることの確認
+        val exception = assertThrows<ItemNotFoundException> {
+            authorService.getAuthorWithBooksResponse(authorId)
+        }
+        assertThat(exception.itemType).isEqualTo("著者ID")
+        assertThat(exception.message).isEqualTo("error.item.not.found")
+        verify(exactly = 1) { authorRepository.findById(authorId) }
+        // 処理が途中で終了するためauthorRepository.findBooksByAuthorId()は呼び出されないことの確認
+        verify(exactly = 0) { authorRepository.findBooksByAuthorId(any()) }
+    }
+
+    // --- registerAuthor ファンクションのテスト ---
+
+    @Test
+    fun `registerAuthor 正常に登録できた場合`() {
+        // Given
+        val authorDto = AuthorDto(
+            id = null, name = "Test User", birthDate = LocalDate.of(2000, 1, 1)
+        )
+        val generatedId = 123L
+        val expectedAuthorDto = authorDto.copy(id = generatedId)
+
+        // When
         every { authorRepository.insertAuthor(any()) } returns generatedId
 
         val result = authorService.registerAuthor(authorDto)
 
         // Then
-        // 期待される結果と実際の結果を検証
-        assertThat(result.id).isEqualTo(generatedId)
-        assertThat(result.name).isEqualTo(authorDto.name)
-        assertThat(result.birthDate).isEqualTo(authorDto.birthDate)
-        verify(exactly = 1) { authorRepository.insertAuthor(authorDto) } // insertAuthorが1回呼ばれたことを検証
-    }
-
-    /**
-     * DBの制約に違反した場合の確認（重複データ登録）
-     */
-    @Test
-    fun `registerAuthor should throw AuthorAlreadyExistsException when DataIntegrityViolationException occurs`() {
-        // Given
-        val authorDto = AuthorDto(
-            id = null,
-            name = "Duplicate Author",
-            birthDate = LocalDate.of(1990, 5, 10)
-        )
-
-        // When
-        // authorRepository.insertAuthorが呼ばれたら、DataIntegrityViolationExceptionをスローするようにモックを設定
-        every { authorRepository.insertAuthor(any()) } throws DataIntegrityViolationException("Duplicate entry for author")
-
-        // Then
-        // AuthorAlreadyExistsExceptionがスローされることを検証
-        assertThrows<AuthorAlreadyExistsException> {
-            authorService.registerAuthor(authorDto)
-        }
+        assertThat(result).isEqualTo(expectedAuthorDto)
         verify(exactly = 1) { authorRepository.insertAuthor(authorDto) }
     }
 
-    // --- partialUpdateAuthor メソッドのテスト ---
+    @Test
+    fun `registerAuthor 同一の著者が登録済みでItemAlreadyExistsExceptionがスローされた場合`() {
+        // Given
+        val authorDto = AuthorDto(
+            id = null, name = "Duplicate Author", birthDate = LocalDate.of(1990, 5, 10)
+        )
+
+        // When
+        every { authorRepository.insertAuthor(any()) } throws DataIntegrityViolationException("Duplicate entry for author")
+
+        // Then
+        val exception = assertThrows<ItemAlreadyExistsException> {
+            authorService.registerAuthor(authorDto)
+        }
+        assertThat(exception.itemType).isEqualTo("著者")
+        assertThat(exception.message).isEqualTo("error.item.already.exists")
+        verify(exactly = 1) { authorRepository.insertAuthor(authorDto) }
+    }
+
+    // --- partialUpdateAuthor ファンクションのテスト ---
 
     @Test
-    fun `partialUpdateAuthor should return updated AuthorDto on successful update`() {
+    fun `partialUpdateAuthor 正常に更新ができる場合`() {
         // Given
         val authorId = 1L
         val updates = mapOf("name" to "Updated Name")
-        val updatedCount = 1
         val updatedAuthorDto = AuthorDto(id = authorId, name = "Updated Name", birthDate = LocalDate.now())
 
         // When
-        // authorRepository.updateAuthorが成功した件数（1）を返すようにモックを設定
-        every { authorRepository.updateAuthor(authorId, updates) } returns updatedCount
-        // updateAuthor呼び出し後に、findByIdが更新後のAuthorDtoを返すようにモックを設定
+        every { authorRepository.updateAuthor(authorId, updates) } returns 1
         every { authorRepository.findById(authorId) } returns updatedAuthorDto
 
         val result = authorService.partialUpdateAuthor(authorId, updates)
 
         // Then
         assertThat(result).isEqualTo(updatedAuthorDto)
-        // updateAuthorとfindByIdがそれぞれ1回呼ばれたことを検証
         verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
         verify(exactly = 1) { authorRepository.findById(authorId) }
     }
 
     @Test
-    fun `partialUpdateAuthor should throw AuthorNotFoundException when no author is found for update`() {
-        // Given
-        val authorId = 999L
-        val updates = mapOf("name" to "NonExistent Author")
-        val updatedCount = 0
-
-        // When
-        // authorRepository.updateAuthorが更新件数0を返すようにモックを設定
-        every { authorRepository.updateAuthor(authorId, updates) } returns updatedCount
-
-        // Then
-        // AuthorNotFoundExceptionがスローされることを検証
-        assertThrows<AuthorNotFoundException> {
-            authorService.partialUpdateAuthor(authorId, updates)
-        }
-        // updateAuthorは呼ばれるが、findByIdは呼ばれないことを検証
-        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
-        verify(exactly = 0) { authorRepository.findById(any()) }
-    }
-
-    @Test
-    fun `partialUpdateAuthor should throw IllegalArgumentException when updates map is empty`() {
+    fun `partialUpdateAuthor updatesマップが空でIllegalArgumentExceptionをスローする場合`() {
         // Given
         val authorId = 1L
         val updates = emptyMap<String, Any?>()
 
         // When & Then
-        // updatesマップが空の場合、IllegalArgumentExceptionがスローされることを検証
         val exception = assertThrows<IllegalArgumentException> {
             authorService.partialUpdateAuthor(authorId, updates)
         }
-        // メッセージの検証はGlobalExceptionHandlerTestに任せ、ここではビジネスロジックが正しく例外をスローすることのみを検証
+        assertThat(exception.message).isEqualTo("error.nothing.update")
         verify(exactly = 0) { authorRepository.updateAuthor(any(), any()) }
+    }
+
+    @Test
+    fun `partialUpdateAuthor 更新件数が1件以上、しかしauthorRepositoryfindByIdで著者IDが取れずUnexpectedExceptionをスローする場合`() {
+        // Given
+        val authorId = 1L
+        val updates = mapOf("name" to "Updated Name")
+
+        // When
+        every { authorRepository.updateAuthor(authorId, updates) } returns 1
+        every { authorRepository.findById(authorId) } returns null
+
+        // Then
+        val exception = assertThrows<UnexpectedException> {
+            authorService.partialUpdateAuthor(authorId, updates)
+        }
+        assertThat(exception.message).isEqualTo("著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。")
+        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
+        verify(exactly = 1) { authorRepository.findById(authorId) }
+
+        // 修正: `GlobalExceptionHandler`が返すメッセージキーを検証
+        // このテストは`Service`の単体テストなので、Serviceがスローしたメッセージをそのまま検証する
+        assertThat(exception.message).isEqualTo("著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。")
+        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
+        verify(exactly = 1) { authorRepository.findById(authorId) }
+    }
+
+    @Test
+    fun `partialUpdateAuthor 更新件数が0件以下でItemNotFoundExceptionをスローする場合`() {
+        // Given
+        val authorId = 999L
+        val updates = mapOf("name" to "Updated Name")
+
+        // When
+        every { authorRepository.updateAuthor(authorId, updates) } returns 0
+
+        // Then
+        val exception = assertThrows<ItemNotFoundException> {
+            authorService.partialUpdateAuthor(authorId, updates)
+        }
+        assertThat(exception.itemType).isEqualTo("著者ID")
+        assertThat(exception.message).isEqualTo("error.item.not.found")
+        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
         verify(exactly = 0) { authorRepository.findById(any()) }
     }
 }

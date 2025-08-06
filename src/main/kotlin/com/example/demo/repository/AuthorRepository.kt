@@ -3,17 +3,38 @@ package com.example.demo.repository
 import com.example.demo.dto.AuthorDto
 import com.example.demo.dto.BookDto
 import db.tables.Authors.AUTHORS
+import db.tables.BookAuthors.BOOK_AUTHORS
+import db.tables.Books.BOOKS
 import db.tables.records.AuthorsRecord
 import org.jooq.DSLContext
 import org.jooq.Field
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
-import db.tables.Books.BOOKS
-import db.tables.BookAuthors.BOOK_AUTHORS
 
 
 @Repository
 class AuthorRepository(private val dslContext: DSLContext) {
+    /**
+     * 指定されたIDの著者データを取得します。
+     * @param id 取得対象の著者ID
+     * @return 指定されたIDの著者データ。見つからない場合はnull。
+     */
+    fun findById(id: Long): AuthorDto? {
+        return dslContext.selectFrom(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOneInto(AuthorDto::class.java)
+    }
+
+    /**
+     * 指定された著者IDに紐づく全ての書籍情報を取得します。
+     * @param authorId 取得する書籍情報の著者ID
+     * @return 著者IDに紐づく書籍情報のリスト。見つからない場合は空のリスト。
+     */
+    fun findBooksByAuthorId(authorId: Long): List<BookDto> {
+        return dslContext.select(
+            BOOKS.ID, BOOKS.TITLE, BOOKS.PRICE, BOOKS.PUBLICATION_STATUS
+        ).from(BOOKS).join(BOOK_AUTHORS).on(BOOKS.ID.eq(BOOK_AUTHORS.BOOK_ID))
+            .where(BOOK_AUTHORS.AUTHOR_ID.eq(authorId)).fetchInto(BookDto::class.java)
+    }
+
     /**
      * 新しい著者データをデータベースに挿入します。
      * @param authorDto 挿入する著者データを含むDTO
@@ -55,35 +76,9 @@ class AuthorRepository(private val dslContext: DSLContext) {
      * @return 存在する場合はtrue、しない場合はfalse
      */
     fun existsById(id: Long): Boolean {
-        return dslContext.selectCount().from(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOne(0, Long::class.java) ?: 0L > 0L
+        return (dslContext.selectCount().from(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOne(0, Long::class.java)
+            ?: 0L) > 0L
     }
 
-    /**
-     * 指定された著者IDに紐づく全ての書籍情報を取得します。
-     * @param authorId 取得する書籍情報の著者ID
-     * @return 著者IDに紐づく書籍情報のリスト。見つからない場合は空のリスト。
-     */
-    fun findBooksByAuthorId(authorId: Long): List<BookDto> {
-        return dslContext.select(
-            BOOKS.ID,
-            BOOKS.TITLE,
-            BOOKS.PRICE,
-            BOOKS.PUBLICATION_STATUS
-        )
-            .from(BOOKS)
-            .join(BOOK_AUTHORS).on(BOOKS.ID.eq(BOOK_AUTHORS.BOOK_ID))
-            .where(BOOK_AUTHORS.AUTHOR_ID.eq(authorId))
-            .fetchInto(BookDto::class.java)
-    }
 
-    /**
-     * 指定されたIDの著者データを取得します。
-     * @param id 取得対象の著者ID
-     * @return 指定されたIDの著者データ。見つからない場合はnull。
-     */
-    fun findById(id: Long): AuthorDto? {
-        return dslContext.selectFrom(AUTHORS)
-            .where(AUTHORS.ID.eq(id))
-            .fetchOneInto(AuthorDto::class.java)
-    }
 }

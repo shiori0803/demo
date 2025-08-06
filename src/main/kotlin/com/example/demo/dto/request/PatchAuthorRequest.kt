@@ -1,7 +1,8 @@
 package com.example.demo.dto.request
 
-import java.time.LocalDate
 import com.fasterxml.jackson.annotation.JsonInclude
+import jakarta.validation.constraints.Past
+import java.time.LocalDate
 
 /**
  * 著者データ部分更新用リクエストDTO。
@@ -11,5 +12,6 @@ import com.fasterxml.jackson.annotation.JsonInclude
 data class PatchAuthorRequest(
     val id: Long? = null,
     val name: String?,
+    @field:Past(message = "validation.birthdate")
     val birthDate: LocalDate?
 )
