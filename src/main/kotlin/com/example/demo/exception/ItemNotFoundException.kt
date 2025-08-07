@@ -13,5 +13,5 @@ import org.springframework.web.bind.annotation.ResponseStatus
 @ResponseStatus(HttpStatus.NOT_FOUND)
 class ItemNotFoundException(
     val itemType: String,
-    message: String = "error.item.not.found"
+    message: String = "error.item.not.found",
 ) : RuntimeException(message)

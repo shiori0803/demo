@@ -11,5 +11,6 @@ import org.springframework.web.bind.annotation.ResponseStatus
  */
 @ResponseStatus(HttpStatus.CONFLICT)
 class ItemAlreadyExistsException(
-    val itemType: String, message: String = "error.item.already.exists"
+    val itemType: String,
+    message: String = "error.item.already.exists",
 ) : RuntimeException(message)

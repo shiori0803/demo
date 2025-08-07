@@ -5,9 +5,9 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id "org.jooq.jooq-codegen-gradle" version "3.19.24"
     id 'org.jetbrains.kotlin.plugin.allopen' version '1.9.25'
+    id 'org.jlleitschuh.gradle.ktlint' version '12.1.1'
 }
 
-group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 
 java {
@@ -76,6 +76,14 @@ kotlin {
     }
 }
 
+ktlint {
+    version = "1.3.0"
+    // ktlintのチェック対象からjOOQの生成コードを除外する
+    filter {
+        exclude('build/generated-src/jooq/**')
+    }
+}
+
 jooq {
     configuration {
 
@@ -112,13 +120,28 @@ tasks.named('compileKotlin') {
     dependsOn tasks.named('jooqCodegen')
 }
 
+tasks.named('runKtlintCheckOverMainSourceSet') {
+    dependsOn tasks.named('jooqCodegen')
+}
+
+tasks.named('ktlintCheck') {
+    dependsOn tasks.named('jooqCodegen')
+}
+
+tasks.named('ktlintFormat') {
+    dependsOn tasks.named('jooqCodegen')
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 
     // デバッグ設定を追加(localhostだと何故かデバッガーのアタッチに失敗するのでWSLのIPを明示的に指定)
     //jvmArgs = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=172.21.60.224:5005"]
-    // テストを並列実行せず、単一のJVMプロセスで実行するように設定
-    //maxParallelForks = 1
 
-    // systemProperty "org.testcontainers.logging.level", "DEBUG"
+    // テストを並列実行せず、単一のJVMプロセスで実行するように設定
+    maxParallelForks = 1
+    // 各テストクラスを新しいJVMプロセスで実行
+    forkEvery = 1
+    // ログレベル設定
+    systemProperty "org.testcontainers.logging.level", "DEBUG"
 }

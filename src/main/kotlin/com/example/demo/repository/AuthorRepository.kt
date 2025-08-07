@@ -11,39 +11,50 @@ import org.jooq.Field
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
 
-
 @Repository
-class AuthorRepository(private val dslContext: DSLContext) {
+class AuthorRepository(
+    private val dslContext: DSLContext,
+) {
     /**
      * 指定されたIDの著者データを取得します。
      * @param id 取得対象の著者ID
      * @return 指定されたIDの著者データ。見つからない場合はnull。
      */
-    fun findById(id: Long): AuthorDto? {
-        return dslContext.selectFrom(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOneInto(AuthorDto::class.java)
-    }
+    fun findById(id: Long): AuthorDto? = dslContext.selectFrom(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOneInto(AuthorDto::class.java)
 
     /**
      * 指定された著者IDに紐づく全ての書籍情報を取得します。
      * @param authorId 取得する書籍情報の著者ID
      * @return 著者IDに紐づく書籍情報のリスト。見つからない場合は空のリスト。
      */
-    fun findBooksByAuthorId(authorId: Long): List<BookDto> {
-        return dslContext.select(
-            BOOKS.ID, BOOKS.TITLE, BOOKS.PRICE, BOOKS.PUBLICATION_STATUS
-        ).from(BOOKS).join(BOOK_AUTHORS).on(BOOKS.ID.eq(BOOK_AUTHORS.BOOK_ID))
-            .where(BOOK_AUTHORS.AUTHOR_ID.eq(authorId)).fetchInto(BookDto::class.java)
-    }
+    fun findBooksByAuthorId(authorId: Long): List<BookDto> =
+        dslContext
+            .select(
+                BOOKS.ID,
+                BOOKS.TITLE,
+                BOOKS.PRICE,
+                BOOKS.PUBLICATION_STATUS,
+            ).from(BOOKS)
+            .join(BOOK_AUTHORS)
+            .on(BOOKS.ID.eq(BOOK_AUTHORS.BOOK_ID))
+            .where(BOOK_AUTHORS.AUTHOR_ID.eq(authorId))
+            .fetchInto(BookDto::class.java)
 
     /**
-     * 新しい著者データをデータベースに挿入します。
+     * 新しい著者データをデータベースに挿入し、挿入された著者データを返します。
      * @param authorDto 挿入する著者データを含むDTO
-     * @return 挿入された著者のID
+     * @return 挿入された著者データ。挿入に失敗した場合はnull。
      */
-    fun insertAuthor(authorDto: AuthorDto): Long? {
-        val record: AuthorsRecord? = dslContext.insertInto(AUTHORS).set(AUTHORS.NAME, authorDto.name)
-            .set(AUTHORS.BIRTH_DATE, authorDto.birthDate).returning(AUTHORS.ID).fetchOne()
-        return record?.id
+    fun insertAuthor(authorDto: AuthorDto): AuthorDto? {
+        val record: AuthorsRecord? =
+            dslContext
+                .insertInto(AUTHORS)
+                .set(AUTHORS.NAME, authorDto.name)
+                .set(AUTHORS.BIRTH_DATE, authorDto.birthDate)
+                .returning()
+                .fetchOne()
+        // AuthorsRecordをAuthorDtoに変換して返却
+        return record?.into(AuthorDto::class.java)
     }
 
     /**
@@ -52,7 +63,10 @@ class AuthorRepository(private val dslContext: DSLContext) {
      * @param updates 更新するフィールド名と値のマップ。
      * @return 更新されたレコード数
      */
-    fun updateAuthor(id: Long, updates: Map<String, Any?>): Int {
+    fun updateAuthor(
+        id: Long,
+        updates: Map<String, Any?>,
+    ): Int {
         if (updates.isEmpty()) {
             return 0
         }
@@ -63,22 +77,28 @@ class AuthorRepository(private val dslContext: DSLContext) {
             when (fieldName) {
                 "name" -> jooqUpdateMap[AUTHORS.NAME] = value as String?
                 "birthDate" -> jooqUpdateMap[AUTHORS.BIRTH_DATE] = value as LocalDate?
-                else -> throw IllegalArgumentException("不明なフィールド名: $fieldName")
+                else -> throw IllegalArgumentException("不明なフィールド名が入力されました: $fieldName")
             }
         }
 
-        return dslContext.update(AUTHORS).set(jooqUpdateMap).where(AUTHORS.ID.eq(id)).execute()
+        return dslContext
+            .update(AUTHORS)
+            .set(jooqUpdateMap)
+            .where(AUTHORS.ID.eq(id))
+            .execute()
     }
 
     /**
-     * 指定された著者IDが存在するかどうかを確認します。
-     * @param id 検索する著者ID
-     * @return 存在する場合はtrue、しない場合はfalse
+     * 指定された著者IDのリストが何件DBに存在するかをチェックする
+     * @param authorIds 検索する著者IDのリスト
+     * @return 引数で渡された著者IDと合致するレコード件数
      */
-    fun existsById(id: Long): Boolean {
-        return (dslContext.selectCount().from(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOne(0, Long::class.java)
-            ?: 0L) > 0L
-    }
-
-
+    fun existsAllByIds(authorIds: List<Long>): Long =
+        dslContext
+            .select(AUTHORS.ID)
+            .from(AUTHORS)
+            .where(AUTHORS.ID.`in`(authorIds))
+            .fetch()
+            .size
+            .toLong()
 }

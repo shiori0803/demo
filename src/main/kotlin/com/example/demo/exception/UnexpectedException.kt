@@ -11,5 +11,5 @@ import org.springframework.web.bind.annotation.ResponseStatus
  */
 @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
 class UnexpectedException(
-    message: String
+    message: String,
 ) : RuntimeException(message)

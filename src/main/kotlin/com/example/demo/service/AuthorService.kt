@@ -15,8 +15,9 @@ import org.springframework.stereotype.Service
  * 著者データ操作用サービスクラス
  */
 @Service
-class AuthorService(private val authorRepository: AuthorRepository) {
-
+class AuthorService(
+    private val authorRepository: AuthorRepository,
+) {
     /**
      * 指定された著者IDに紐づく全ての書籍情報と著者情報を取得
      *
@@ -33,17 +34,21 @@ class AuthorService(private val authorRepository: AuthorRepository) {
 
         val bookDtos = authorRepository.findBooksByAuthorId(authorId)
 
-        val authorResponse = AuthorResponse(
-            id = authorDto.id, name = authorDto.name, birthDate = authorDto.birthDate
-        )
-        val bookResponses = bookDtos.map { bookDto ->
-            BookResponse(
-                id = bookDto.id,
-                title = bookDto.title,
-                price = bookDto.price,
-                publicationStatus = bookDto.publicationStatus
+        val authorResponse =
+            AuthorResponse(
+                id = authorDto.id,
+                name = authorDto.name,
+                birthDate = authorDto.birthDate,
             )
-        }
+        val bookResponses =
+            bookDtos.map { bookDto ->
+                BookResponse(
+                    id = bookDto.id,
+                    title = bookDto.title,
+                    price = bookDto.price,
+                    publicationStatus = bookDto.publicationStatus,
+                )
+            }
 
         return AuthorWithBooksResponse(authorResponse, bookResponses)
     }
@@ -55,13 +60,21 @@ class AuthorService(private val authorRepository: AuthorRepository) {
      * @return 登録済みの著者情報
      * @throws ItemAlreadyExistsException 同一の著者が既に登録されている場合
      */
-    fun registerAuthor(authorDto: AuthorDto): AuthorDto {
-        try {
-            val insertedId = authorRepository.insertAuthor(authorDto)
-            return authorDto.copy(id = insertedId!!)
-        } catch (e: DataIntegrityViolationException) {
-            throw ItemAlreadyExistsException(itemType = "著者")
-        }
+    fun registerAuthor(authorDto: AuthorDto): AuthorResponse {
+        // authorテーブルへのデータ登録
+        val insertedAuthorDto =
+            try {
+                authorRepository.insertAuthor(authorDto)
+            } catch (e: DataIntegrityViolationException) {
+                throw ItemAlreadyExistsException(itemType = "著者")
+            } ?: throw IllegalStateException("登録した著者情報が見つかりません。")
+
+        // 新しいレスポンスDTOを構築して登録結果を返す
+        return AuthorResponse(
+            id = insertedAuthorDto.id,
+            name = insertedAuthorDto.name,
+            birthDate = insertedAuthorDto.birthDate,
+        )
     }
 
     /**
@@ -71,7 +84,10 @@ class AuthorService(private val authorRepository: AuthorRepository) {
      * @return 更新後の著者情報
      * @throws AuthorNotFoundException 指定された著者が見つからない場合
      */
-    fun partialUpdateAuthor(id: Long, updates: Map<String, Any?>): AuthorDto {
+    fun partialUpdateAuthor(
+        id: Long,
+        updates: Map<String, Any?>,
+    ): AuthorDto {
         // 更新する項目がない場合は、IllegalArgumentExceptionをスロー
         // この仕様はこのAPIの仕様（ビジネスロジック）なのでServiceクラスに実装
         if (updates.isEmpty()) {
@@ -83,12 +99,10 @@ class AuthorService(private val authorRepository: AuthorRepository) {
         if (updatedCount > 0) {
             // ここでUnexpectedExceptionになるのは、登録処理後に登録した著者IDが取得できないというイレギュラーな場合
             return authorRepository.findById(id) ?: throw UnexpectedException(
-                message = "著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。"
+                message = "著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。",
             )
         } else {
             throw ItemNotFoundException(itemType = "著者ID")
         }
     }
-
-
 }

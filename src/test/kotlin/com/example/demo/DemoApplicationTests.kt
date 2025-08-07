@@ -7,9 +7,7 @@ import org.springframework.test.context.TestPropertySource
 @SpringBootTest
 @TestPropertySource(properties = ["spring.flyway.enabled=false"])
 class DemoApplicationTests {
-
-	@Test
-	fun contextLoads() {
-	}
-
+    @Test
+    fun contextLoads() {
+    }
 }

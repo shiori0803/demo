@@ -8,29 +8,38 @@ import com.example.demo.service.BookService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
 
 /**
  * 書籍関連APIのコントローラ
  */
 @RestController
 @RequestMapping("/api/books")
-class BookController(private val bookService: BookService) {
-
+class BookController(
+    private val bookService: BookService,
+) {
     /**
-     * 新しい書籍を作成するAPI
-     * POST /api/books
+     * 書籍情報登録API
+     *
+     * @param registerBookRequest
+     * @return 成功時：BookWithAuthorsResponse,失敗時：ErrorResponse
      */
     @PostMapping
-    fun createBook(@Valid @RequestBody registerBookRequest: RegisterBookRequest): ResponseEntity<BookWithAuthorsResponse> {
-        require(registerBookRequest.id == null) { "ID must be null for new book creation" }
-
-        val bookDto = BookDto(
-            id = null,
-            title = registerBookRequest.title!!,
-            price = registerBookRequest.price!!,
-            publicationStatus = registerBookRequest.publicationStatus!!
-        )
+    fun createBook(
+        @Valid @RequestBody registerBookRequest: RegisterBookRequest,
+    ): ResponseEntity<BookWithAuthorsResponse> {
+        val bookDto =
+            BookDto(
+                id = null,
+                title = registerBookRequest.title!!,
+                price = registerBookRequest.price!!,
+                publicationStatus = registerBookRequest.publicationStatus!!,
+            )
 
         // サービス層の呼び出しと、新しいレスポンスDTOの取得
         val createdBook = bookService.registerBook(bookDto, registerBookRequest.authorIds!!)
@@ -39,49 +48,36 @@ class BookController(private val bookService: BookService) {
     }
 
     /**
-     * 指定されたIDの書籍データを取得するAPI
-     * GET /api/books/{id}
-     */
-    @GetMapping("/{id}")
-    fun getBookById(@PathVariable id: Long): ResponseEntity<BookDto> {
-        val bookDto = bookService.findBookById(id)
-        return if (bookDto != null) {
-            ResponseEntity.ok(bookDto)
-        } else {
-            // 書籍が見つからない場合はGlobalExceptionHandlerでBookNotFoundExceptionが捕捉される
-            // ここでは直接NotFoundを返す
-            ResponseEntity.notFound().build()
-        }
-    }
-
-    /**
      * 既存の書籍データを部分的に更新するAPI
      * PATCH /api/books/{id}
      */
     @PatchMapping("/{id}")
     fun patchBook(
-        @PathVariable id: Long, @Valid @RequestBody patchBookRequest: PatchBookRequest
-    ): ResponseEntity<BookDto> {
-        // リクエストボディのIDがパスのIDと一致しない、または存在する場合はエラーとする
-        require(patchBookRequest.id == null || patchBookRequest.id == id) { "ID in request body must be null or match path variable ID" }
-
+        @PathVariable id: Long,
+        @Valid @RequestBody patchBookRequest: PatchBookRequest,
+    ): ResponseEntity<BookWithAuthorsResponse> {
         // 更新するフィールドと値のマップを構築
         val updates = mutableMapOf<String, Any?>()
 
-        // title (NOT NULLカラム) - nullでない値が提供された場合のみマップに追加
-        patchBookRequest.title?.let { updates["title"] = it }
+        // titleがnullまたは空文字・空白でない場合のみマップに追加
+        if (!patchBookRequest.title.isNullOrBlank()) {
+            updates["title"] = patchBookRequest.title
+        }
 
-        // price (NOT NULLカラム) - nullでない値が提供された場合のみマップに追加
-        patchBookRequest.price?.let { updates["price"] = it }
+        // priceがnullでない場合のみマップに追加
+        if (patchBookRequest.price != null) {
+            updates["price"] = patchBookRequest.price
+        }
 
-        // publicationStatus (NOT NULLカラム) - nullでない値が提供された場合のみマップに追加
-        patchBookRequest.publicationStatus?.let { updates["publicationStatus"] = it }
+        // publicationStatusがnullでない場合のみマップに追加
+        if (patchBookRequest.publicationStatus != null) {
+            updates["publicationStatus"] = patchBookRequest.publicationStatus
+        }
 
         // サービス層を呼び出し、更新された書籍データを取得
-        // newAuthorIdsは、nullの場合は更新しない、空リストの場合は関連を全て削除、と解釈される
-        val updatedBook = bookService.updateBook(id, updates, patchBookRequest.authorIds)
+        val updatedBookWithAuthors = bookService.updateBook(id, updates, patchBookRequest.authorIds)
 
         // 成功した場合、OKステータスと更新された書籍データを返す
-        return ResponseEntity.ok(updatedBook)
+        return ResponseEntity.ok(updatedBookWithAuthors)
     }
 }

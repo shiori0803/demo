@@ -1,32 +1,47 @@
 package com.example.demo.repository
 
 import com.example.demo.dto.BookDto
+import db.tables.Books.BOOKS
+import db.tables.records.BooksRecord
 import org.jooq.DSLContext
-import db.tables.Books.BOOKS // jOOQが生成するBooksテーブルの参照をインポート
-import db.tables.records.BooksRecord // jOOQが生成するBooksRecordの参照をインポート
-import org.springframework.stereotype.Repository
 import org.jooq.Field
+import org.springframework.stereotype.Repository
 
 /**
  * 書籍データ操作用リポジトリクラス
  */
 @Repository
-class BookRepository(private val dslContext: DSLContext) {
+class BookRepository(
+    private val dslContext: DSLContext,
+) {
+    /**
+     * 指定されたIDの書籍データを取得します。
+     * @param id 取得対象の書籍ID
+     * @return 指定されたIDの書籍データ。見つからない場合はnull。
+     */
+    fun findById(id: Long): BookDto? =
+        dslContext
+            .selectFrom(BOOKS)
+            .where(BOOKS.ID.eq(id))
+            .fetchOneInto(BookDto::class.java)
 
     /**
-     * 新しい書籍データをデータベースに挿入します。
+     * 新しい書籍データをデータベースに挿入し、挿入された書籍データを返します。
      * @param bookDto 挿入する書籍データを含むDTO
-     * @return 挿入された書籍のID
+     * @return 挿入された書籍データ。挿入に失敗した場合はnull。
      */
-    fun insertBook(bookDto: BookDto): Long? {
+    fun insertBook(bookDto: BookDto): BookDto? {
         // returning(BOOKS.ID) を使用して、自動生成されたIDを取得
-        val record: BooksRecord? = dslContext.insertInto(BOOKS)
-            .set(BOOKS.TITLE, bookDto.title)
-            .set(BOOKS.PRICE, bookDto.price)
-            .set(BOOKS.PUBLICATION_STATUS, bookDto.publicationStatus)
-            .returning(BOOKS.ID)
-            .fetchOne()
-        return record?.id
+        val record: BooksRecord? =
+            dslContext
+                .insertInto(BOOKS)
+                .set(BOOKS.TITLE, bookDto.title)
+                .set(BOOKS.PRICE, bookDto.price)
+                .set(BOOKS.PUBLICATION_STATUS, bookDto.publicationStatus)
+                .returning()
+                .fetchOne()
+        // BooksRecordをAuthorDtoに変換して返却
+        return record?.into(BookDto::class.java)
     }
 
     /**
@@ -37,11 +52,10 @@ class BookRepository(private val dslContext: DSLContext) {
      * マップに存在するが値がnullのフィールドは、DBの対応するカラムをnullに更新します（nullableなカラムの場合）。
      * @return 更新されたレコード数
      */
-    fun updateBook(id: Long, updates: Map<String, Any?>): Int {
-        if (updates.isEmpty()) {
-            return 0 // 更新するフィールドがない場合
-        }
-
+    fun updateBook(
+        id: Long,
+        updates: Map<String, Any?>,
+    ): Int {
         // 更新するフィールドと値のマップをjOOQのFieldオブジェクトと値のペアに変換
         val jooqUpdateMap = mutableMapOf<Field<*>, Any?>()
 
@@ -50,25 +64,15 @@ class BookRepository(private val dslContext: DSLContext) {
                 "title" -> jooqUpdateMap[BOOKS.TITLE] = value as String?
                 "price" -> jooqUpdateMap[BOOKS.PRICE] = value as Int?
                 "publicationStatus" -> jooqUpdateMap[BOOKS.PUBLICATION_STATUS] = value as Int?
-                else -> throw IllegalArgumentException("不明なフィールド名: $fieldName")
+                else -> throw IllegalArgumentException("不明なフィールド名が入力されました: $fieldName")
             }
         }
 
         // jOOQのupdate().set(Map<Field<?>, ?>) を使用して、動的にSET句を構築
-        return dslContext.update(BOOKS)
+        return dslContext
+            .update(BOOKS)
             .set(jooqUpdateMap)
             .where(BOOKS.ID.eq(id))
             .execute()
-    }
-
-    /**
-     * 指定されたIDの書籍データを取得します。
-     * @param id 取得対象の書籍ID
-     * @return 指定されたIDの書籍データ。見つからない場合はnull。
-     */
-    fun findById(id: Long): BookDto? {
-        return dslContext.selectFrom(BOOKS)
-            .where(BOOKS.ID.eq(id))
-            .fetchOneInto(BookDto::class.java)
     }
 }

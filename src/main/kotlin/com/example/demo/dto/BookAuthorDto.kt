@@ -9,9 +9,8 @@ data class BookAuthorDto(
      * 書籍のID (BIGINT NOT NULL)
      */
     val bookId: Long,
-
     /**
      * 著者のID (BIGINT NOT NULL)
      */
-    val authorId: Long
+    val authorId: Long,
 )

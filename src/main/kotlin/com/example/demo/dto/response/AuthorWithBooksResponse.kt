@@ -8,5 +8,5 @@ package com.example.demo.dto.response
  */
 data class AuthorWithBooksResponse(
     val author: AuthorResponse,
-    val books: List<BookResponse>
+    val books: List<BookResponse>,
 )

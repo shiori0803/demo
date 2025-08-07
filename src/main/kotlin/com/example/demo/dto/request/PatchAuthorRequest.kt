@@ -13,5 +13,5 @@ data class PatchAuthorRequest(
     val id: Long? = null,
     val name: String?,
     @field:Past(message = "validation.birthdate")
-    val birthDate: LocalDate?
+    val birthDate: LocalDate?,
 )
