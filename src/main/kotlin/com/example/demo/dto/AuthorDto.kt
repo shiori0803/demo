@@ -9,5 +9,5 @@ import java.time.LocalDate
 data class AuthorDto(
     val id: Long?,
     val name: String?, // 新しい name カラム
-    val birthDate: LocalDate?
+    val birthDate: LocalDate?,
 )

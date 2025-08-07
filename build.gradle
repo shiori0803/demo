@@ -1,123 +1,147 @@
 plugins {
-	id 'org.jetbrains.kotlin.jvm' version '1.9.25'
-	id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
-	id 'org.springframework.boot' version '3.5.4'
-	id 'io.spring.dependency-management' version '1.1.7'
-	id "org.jooq.jooq-codegen-gradle" version "3.19.24"
-	id 'org.jetbrains.kotlin.plugin.allopen' version '1.9.25'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.25'
+    id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
+    id 'org.springframework.boot' version '3.5.4'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id "org.jooq.jooq-codegen-gradle" version "3.19.24"
+    id 'org.jetbrains.kotlin.plugin.allopen' version '1.9.25'
+    id 'org.jlleitschuh.gradle.ktlint' version '12.1.1'
 }
 
-group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 
 repositories {
-	maven { url "https://jitpack.io" }
-	mavenCentral()
+    maven { url "https://jitpack.io" }
+    mavenCentral()
 }
 
 def mockkVersion = "1.13.11"
 def testcontainersVersion = "1.21.3"
 
 dependencies {
-	//.envファイル読み込み用
-	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
-	// commons-compressの脆弱性解消のため、バージョンを1.26.0に上書き
-	implementation 'org.apache.commons:commons-compress:1.26.0'
-	// commons-lang3の脆弱性解消のため、バージョンを3.18.0に上書き
-	implementation 'org.apache.commons:commons-lang3:3.18.0'
-	implementation 'org.springframework.boot:spring-boot-starter-jooq'
-	// Spring Bootのバリデーション機能を有効にするための依存関係
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.flywaydb:flyway-core'
-	implementation 'org.flywaydb:flyway-database-postgresql'
-	implementation 'org.jetbrains.kotlin:kotlin-reflect'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
-	// jOOQのKotlin拡張関数ライブラリ
-	implementation 'org.jooq:jooq-kotlin:3.19.24'
+    //.envファイル読み込み用
+    implementation 'io.github.cdimascio:java-dotenv:5.2.2'
+    // commons-compressの脆弱性解消のため、バージョンを1.26.0に上書き
+    implementation 'org.apache.commons:commons-compress:1.26.0'
+    // commons-lang3の脆弱性解消のため、バージョンを3.18.0に上書き
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    // Spring Bootのバリデーション機能を有効にするための依存関係
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
+    // jOOQのKotlin拡張関数ライブラリ
+    implementation 'org.jooq:jooq-kotlin:3.19.24'
 
-	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-	runtimeOnly 'org.postgresql:postgresql:42.7.7'
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+    runtimeOnly 'org.postgresql:postgresql:42.7.7'
 
-	// Spring Bootの統合テスト用 (JUnit 5を含むため残す)
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Spring Bootの統合テスト用 (JUnit 5を含むため残す)
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'com.ninja-squad:springmockk:4.0.2'
 
-	// Mockk
-	testImplementation "io.mockk:mockk:${mockkVersion}"
+    // Mockk
+    testImplementation "io.mockk:mockk:${mockkVersion}"
 
-	// Testcontainers
-	testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
-	testImplementation "org.testcontainers:postgresql"
-	testImplementation "org.testcontainers:junit-jupiter"
+    // Testcontainers
+    testImplementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+    testImplementation "org.testcontainers:postgresql"
+    testImplementation "org.testcontainers:junit-jupiter"
 
-	// jooqCodegen用のPostgreSQLドライバ
-	jooqCodegen 'org.postgresql:postgresql:42.7.7'
+    // jooqCodegen用のPostgreSQLドライバ
+    jooqCodegen 'org.postgresql:postgresql:42.7.7'
 }
 
 // @SpringBootApplicationが付いたクラスがfinalとして扱われるため追加
 allOpen {
-	annotation('org.springframework.stereotype.Component')
-	annotation('org.springframework.transaction.annotation.Transactional')
-	annotation('org.springframework.scheduling.annotation.Async')
-	annotation('org.springframework.cache.annotation.Cacheable')
-	annotation('org.springframework.boot.autoconfigure.SpringBootApplication')
+    annotation('org.springframework.stereotype.Component')
+    annotation('org.springframework.transaction.annotation.Transactional')
+    annotation('org.springframework.scheduling.annotation.Async')
+    annotation('org.springframework.cache.annotation.Cacheable')
+    annotation('org.springframework.boot.autoconfigure.SpringBootApplication')
 }
 
 kotlin {
-	compilerOptions {
-		freeCompilerArgs.addAll '-Xjsr305=strict'
-	}
+    compilerOptions {
+        freeCompilerArgs.addAll '-Xjsr305=strict'
+    }
+}
+
+ktlint {
+    version = "1.3.0"
+    // ktlintのチェック対象からjOOQの生成コードを除外する
+    filter {
+        exclude('build/generated-src/jooq/**')
+    }
 }
 
 jooq {
-	configuration {
+    configuration {
 
-		jdbc {
-			driver = "org.postgresql.Driver"
-			url = "jdbc:postgresql://localhost:5432/mydb"
-			user = "postgres"
-			password = "password"
-		}
-		generator {
-			database {
-				name = "org.jooq.meta.postgres.PostgresDatabase"
-				inputSchema = "public"
-				includes = ".*"
-			}
+        jdbc {
+            driver = "org.postgresql.Driver"
+            url = "jdbc:postgresql://localhost:5432/mydb"
+            user = "postgres"
+            password = "password"
+        }
+        generator {
+            database {
+                name = "org.jooq.meta.postgres.PostgresDatabase"
+                inputSchema = "public"
+                includes = ".*"
+            }
 
-			target {
-				packageName = "db"
-				directory = "build/generated-src/jooq"
-			}
-		}
-	}
+            target {
+                packageName = "db"
+                directory = "build/generated-src/jooq"
+            }
+        }
+    }
 }
 
 sourceSets {
-	main {
-		java {
-			srcDirs += files('build/generated-src/jooq')
-		}
-	}
+    main {
+        java {
+            srcDirs += files('build/generated-src/jooq')
+        }
+    }
 }
 
 tasks.named('compileKotlin') {
-	dependsOn tasks.named('jooqCodegen')
+    dependsOn tasks.named('jooqCodegen')
+}
+
+tasks.named('runKtlintCheckOverMainSourceSet') {
+    dependsOn tasks.named('jooqCodegen')
+}
+
+tasks.named('ktlintCheck') {
+    dependsOn tasks.named('jooqCodegen')
+}
+
+tasks.named('ktlintFormat') {
+    dependsOn tasks.named('jooqCodegen')
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 
-	// デバッグ設定を追加(localhostだと何故かデバッガーのアタッチに失敗するのでWSLのIPを明示的に指定)
-	//jvmArgs = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=172.21.60.224:5005"]
-	// テストを並列実行せず、単一のJVMプロセスで実行するように設定
-	//maxParallelForks = 1
+    // デバッグ設定を追加(localhostだと何故かデバッガーのアタッチに失敗するのでWSLのIPを明示的に指定)
+    //jvmArgs = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=172.21.60.224:5005"]
 
-	// systemProperty "org.testcontainers.logging.level", "DEBUG"
+    // テストを並列実行せず、単一のJVMプロセスで実行するように設定
+    maxParallelForks = 1
+    // 各テストクラスを新しいJVMプロセスで実行
+    forkEvery = 1
+    // ログレベル設定
+    systemProperty "org.testcontainers.logging.level", "DEBUG"
 }
