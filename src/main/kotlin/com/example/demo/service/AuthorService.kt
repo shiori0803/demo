@@ -84,23 +84,34 @@ class AuthorService(
      * @param id 更新対象の著者ID。
      * @param updates 更新するフィールド名と値のマップ。
      * @return 更新後の著者情報を含むDTO。
-     * @throws IllegalArgumentException 更新する項目が空の場合。
      * @throws ItemNotFoundException 指定された著者IDが見つからない場合。
      * @throws UnexpectedException データベースの更新後にデータが取得できないという予期せぬ事態が発生した場合。
      */
     fun partialUpdateAuthor(
         id: Long,
         updates: Map<String, Any?>,
-    ): AuthorDto {
+    ): AuthorResponse {
+        val existingAuthorDto = authorRepository.findById(id) ?: throw ItemNotFoundException(itemType = "著者ID")
+
         if (updates.isEmpty()) {
-            throw IllegalArgumentException("error.nothing.update")
+            return AuthorResponse(
+                id = existingAuthorDto.id,
+                name = existingAuthorDto.name,
+                birthDate = existingAuthorDto.birthDate,
+            )
         }
 
         val updatedCount = authorRepository.updateAuthor(id, updates)
 
-        if (updatedCount > 0) {
-            return authorRepository.findById(id) ?: throw UnexpectedException(
-                message = "著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。",
+        return if (updatedCount > 0) {
+            val updatedAuthorDto =
+                authorRepository.findById(id) ?: throw UnexpectedException(
+                    message = "著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。",
+                )
+            AuthorResponse(
+                id = updatedAuthorDto.id,
+                name = updatedAuthorDto.name,
+                birthDate = updatedAuthorDto.birthDate,
             )
         } else {
             throw ItemNotFoundException(itemType = "著者ID")

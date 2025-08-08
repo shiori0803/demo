@@ -76,7 +76,7 @@ class AuthorController(
     @PatchMapping("/{authorId}")
     fun patchAuthor(
         @PathVariable authorId: Long,
-        @RequestBody patchAuthorRequest: PatchAuthorRequest,
+        @Valid @RequestBody patchAuthorRequest: PatchAuthorRequest,
     ): ResponseEntity<AuthorResponse> {
         require(
             patchAuthorRequest.id == null || patchAuthorRequest.id == authorId,

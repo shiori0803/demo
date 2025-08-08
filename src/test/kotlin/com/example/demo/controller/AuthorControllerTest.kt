@@ -66,24 +66,26 @@ class AuthorControllerTest
             fun partialUpdateTestData(): Stream<Arguments> {
                 val originalAuthorDto = AuthorDto(id = 1L, name = "Original Name", birthDate = LocalDate.of(2000, 1, 1))
                 val updatedAuthorDto = AuthorDto(id = 1L, name = "Updated Name", birthDate = LocalDate.of(1990, 1, 1))
+                val updatedAuthorResponse =
+                    AuthorResponse(id = 1L, name = "Updated Name", birthDate = LocalDate.of(1990, 1, 1))
 
                 return Stream.of(
                     // nameのみ更新
                     Arguments.of(
                         originalAuthorDto,
-                        updatedAuthorDto.copy(birthDate = originalAuthorDto.birthDate),
+                        updatedAuthorResponse.copy(birthDate = originalAuthorDto.birthDate),
                         mapOf("name" to "Updated Name"),
                     ),
                     // birthDateのみ更新
                     Arguments.of(
                         originalAuthorDto,
-                        updatedAuthorDto.copy(name = originalAuthorDto.name),
+                        updatedAuthorResponse.copy(name = originalAuthorDto.name),
                         mapOf("birthDate" to LocalDate.of(1990, 1, 1)),
                     ),
                     // nameとbirthDateを両方更新
                     Arguments.of(
                         originalAuthorDto,
-                        updatedAuthorDto,
+                        updatedAuthorResponse,
                         mapOf("name" to "Updated Name", "birthDate" to LocalDate.of(1990, 1, 1)),
                     ),
                 )
@@ -154,10 +156,9 @@ class AuthorControllerTest
             val authorId = 1L
 
             val request = RegisterAuthorRequest(name = authorName, birthDate = authorBirthDate)
-            val createdAuthorDto = AuthorResponse(id = authorId, name = authorName, birthDate = authorBirthDate)
             val createdAuthorResponse = AuthorResponse(id = authorId, name = authorName, birthDate = authorBirthDate)
 
-            every { authorService.registerAuthor(any()) } returns createdAuthorDto
+            every { authorService.registerAuthor(any()) } returns createdAuthorResponse
 
             // When & Then
             mockMvc
@@ -282,7 +283,7 @@ class AuthorControllerTest
         @MethodSource("partialUpdateTestData")
         fun `patchAuthor 正常に更新できる場合`(
             originalAuthorDto: AuthorDto,
-            updatedAuthorDto: AuthorDto,
+            updatedAuthorResponse: AuthorResponse,
             updatesMap: Map<String, Any?>,
         ) {
             // Given
@@ -290,7 +291,7 @@ class AuthorControllerTest
             val request =
                 PatchAuthorRequest(name = updatesMap["name"] as? String, birthDate = updatesMap["birthDate"] as? LocalDate)
 
-            every { authorService.partialUpdateAuthor(authorId, updatesMap) } returns updatedAuthorDto
+            every { authorService.partialUpdateAuthor(authorId, updatesMap) } returns updatedAuthorResponse
 
             // When & Then
             mockMvc
@@ -300,8 +301,8 @@ class AuthorControllerTest
                         .content(objectMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
                 .andExpect { result ->
-                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorDto::class.java)
-                    assertThat(responseBody).isEqualTo(updatedAuthorDto)
+                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorResponse::class.java)
+                    assertThat(responseBody).isEqualTo(updatedAuthorResponse)
                 }
             verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, updatesMap) }
         }
@@ -314,9 +315,10 @@ class AuthorControllerTest
         ) {
             // Given
             val authorId = 1L
-            val updatedAuthorDto = AuthorDto(id = authorId, name = "Original Name", birthDate = LocalDate.of(2000, 1, 1))
+            val updatedAuthorResponse =
+                AuthorResponse(id = authorId, name = "Original Name", birthDate = LocalDate.of(2000, 1, 1))
 
-            every { authorService.partialUpdateAuthor(authorId, expectedUpdates) } returns updatedAuthorDto
+            every { authorService.partialUpdateAuthor(authorId, expectedUpdates) } returns updatedAuthorResponse
 
             // When & Then
             mockMvc
@@ -326,8 +328,8 @@ class AuthorControllerTest
                         .content(objectMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
                 .andExpect { result ->
-                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorDto::class.java)
-                    assertThat(responseBody).isEqualTo(updatedAuthorDto)
+                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorResponse::class.java)
+                    assertThat(responseBody).isEqualTo(updatedAuthorResponse)
                 }
             verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, expectedUpdates) }
         }
@@ -339,9 +341,9 @@ class AuthorControllerTest
             val name = "Updated Name"
             val request = PatchAuthorRequest(name = name, birthDate = null)
             val expectedUpdates = mapOf("name" to name)
-            val updatedAuthorDto = AuthorDto(id = authorId, name = name, birthDate = LocalDate.of(2000, 1, 1))
+            val updatedAuthorResponse = AuthorResponse(id = authorId, name = name, birthDate = LocalDate.of(2000, 1, 1))
 
-            every { authorService.partialUpdateAuthor(authorId, expectedUpdates) } returns updatedAuthorDto
+            every { authorService.partialUpdateAuthor(authorId, expectedUpdates) } returns updatedAuthorResponse
 
             // When & Then
             mockMvc
@@ -351,8 +353,8 @@ class AuthorControllerTest
                         .content(objectMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
                 .andExpect { result ->
-                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorDto::class.java)
-                    assertThat(responseBody).isEqualTo(updatedAuthorDto)
+                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorResponse::class.java)
+                    assertThat(responseBody).isEqualTo(updatedAuthorResponse)
                 }
             // MockKのverifyファンクションは、ファンクションが呼び出された際の引数の中身まで検証する（mapの中身も検証できる）
             verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, expectedUpdates) }
@@ -362,14 +364,7 @@ class AuthorControllerTest
         fun `patchAuthor birthDateの値が本日を含む未来日だったらバリデーションエラーになる`() {
             // Given
             val authorId = 1L
-            val request = PatchAuthorRequest(name = "Test Name", birthDate = LocalDate.now())
-
-            every {
-                authorService.partialUpdateAuthor(
-                    any(),
-                    any(),
-                )
-            } throws IllegalArgumentException("validation.birthdate")
+            val request = PatchAuthorRequest(name = "Test Name", birthDate = LocalDate.now().plusDays(1))
 
             // When & Then
             mockMvc
@@ -379,24 +374,29 @@ class AuthorControllerTest
                         .content(objectMapper.writeValueAsString(request)),
                 ).andExpect(status().isBadRequest)
                 .andExpect { result ->
-                    val resolvedException = result.resolvedException as IllegalArgumentException
-                    assertThat(resolvedException.message).isEqualTo("validation.birthdate")
+                    assertThat(result.resolvedException).isInstanceOf(MethodArgumentNotValidException::class.java)
+                    val errors = (result.resolvedException as MethodArgumentNotValidException).bindingResult.fieldErrors
+                    assertThat(errors).hasSize(1)
+                    assertThat(errors.first().field).isEqualTo("birthDate")
                 }
-            verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, any()) }
+            // サービスメソッドは呼び出されない
+            verify(exactly = 0) { authorService.partialUpdateAuthor(any(), any()) }
         }
 
         @Test
-        fun `patchAuthor リクエストボディが空だったら更新するものがないエラーになる`() {
+        fun `patchAuthor リクエストボディが空だったら更新をスキップし既存のデータを返却すること`() {
             // Given
             val authorId = 1L
             val request = PatchAuthorRequest(name = null, birthDate = null)
+            val originalAuthorResponse =
+                AuthorResponse(id = authorId, name = "Original Name", birthDate = LocalDate.of(2000, 1, 1))
 
             every {
                 authorService.partialUpdateAuthor(
                     authorId,
                     emptyMap(),
                 )
-            } throws IllegalArgumentException("error.nothing.update")
+            } returns originalAuthorResponse
 
             // When & Then
             mockMvc
@@ -404,10 +404,10 @@ class AuthorControllerTest
                     patch("/api/authors/{id}", authorId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)),
-                ).andExpect(status().isBadRequest)
+                ).andExpect(status().isOk)
                 .andExpect { result ->
-                    val resolvedException = result.resolvedException as IllegalArgumentException
-                    assertThat(resolvedException.message).isEqualTo("error.nothing.update")
+                    val responseBody = objectMapper.readValue(result.response.contentAsString, AuthorResponse::class.java)
+                    assertThat(responseBody).isEqualTo(originalAuthorResponse)
                 }
             verify(exactly = 1) { authorService.partialUpdateAuthor(authorId, emptyMap()) }
         }
