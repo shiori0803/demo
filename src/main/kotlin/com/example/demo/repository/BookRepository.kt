@@ -49,7 +49,6 @@ class BookRepository(
      * @param id 更新対象の書籍ID
      * @param updates 更新するフィールド名と値のマップ。
      * マップに存在しないフィールドは更新しません。
-     * マップに存在するが値がnullのフィールドは、DBの対応するカラムをnullに更新します（nullableなカラムの場合）。
      * @return 更新されたレコード数
      */
     fun updateBook(

@@ -10,7 +10,7 @@
     1. ` docker-compose up -d`
     1. ` docker-compose run --rm flyway-migrate`
 1. 下記操作にてSpring Bootアプリケーションの起動
-    1. IntelijにてGradleの「Sync All Gradle Project」を押下
+    1. IntelliJにてGradleの「Sync All Gradle Project」を押下
     1. `./gradlew bootRun`（プロジェクトルートディレクトリにて）
 1. 任意のAPIリクエスト実施可能
 
@@ -64,9 +64,7 @@ curl http://localhost:8080/api/authors/1/books
       "id": 1,
       "title": "SQL入門",
       "price": 2981,
-      "
-      publicationStatus
-      " : 1
+      "publicationStatus": 1
     },
     {
       "id": 4,
@@ -320,6 +318,9 @@ erDiagram
 
 - リモートでバック実行時の起動コマンド
     - `./gradlew bootRun --debug-jvm`
+- jOOQ
+    - DB定義からのコードジェネレート
+        - `./gradlew jooqCodegen`
 - ktlint
     - コードスタイルチェック
         - `./gradlew ktlintCheck`

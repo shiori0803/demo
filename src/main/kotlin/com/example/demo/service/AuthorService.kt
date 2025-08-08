@@ -82,7 +82,7 @@ class AuthorService(
      * @param id 更新対象の著者ID
      * @param updates 更新するフィールド名と値のマップ
      * @return 更新後の著者情報
-     * @throws AuthorNotFoundException 指定された著者が見つからない場合
+     * @throws ItemNotFoundException 指定された著者が見つからない場合
      */
     fun partialUpdateAuthor(
         id: Long,
