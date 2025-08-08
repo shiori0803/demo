@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * 書籍関連APIのコントローラ
+ * 書籍関連APIを処理するコントローラクラス。
+ *
+ * @property bookService 書籍データのビジネスロジックを担うサービス。
  */
 @RestController
 @RequestMapping("/api/books")
@@ -24,10 +26,11 @@ class BookController(
     private val bookService: BookService,
 ) {
     /**
-     * 書籍情報登録API
+     * 書籍情報登録API。
+     * 新規の書籍情報を登録します。
      *
-     * @param registerBookRequest
-     * @return 成功時：BookWithAuthorsResponse,失敗時：ErrorResponse
+     * @param registerBookRequest 登録する書籍情報を含むリクエストDTO。
+     * @return 成功時: `BookWithAuthorsResponse`、失敗時: `ErrorResponse`。
      */
     @PostMapping
     fun createBook(
@@ -41,43 +44,40 @@ class BookController(
                 publicationStatus = registerBookRequest.publicationStatus!!,
             )
 
-        // サービス層の呼び出しと、新しいレスポンスDTOの取得
         val createdBook = bookService.registerBook(bookDto, registerBookRequest.authorIds!!)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdBook)
     }
 
     /**
-     * 既存の書籍データを部分的に更新するAPI
-     * PATCH /api/books/{id}
+     * 書籍情報更新API。
+     * 既存の書籍データを部分的に更新します。
+     *
+     * @param id 更新したい書籍のID。
+     * @param patchBookRequest 更新する情報を含むリクエストDTO。
+     * @return 成功時: `BookWithAuthorsResponse`、失敗時: `ErrorResponse`。
      */
     @PatchMapping("/{id}")
     fun patchBook(
         @PathVariable id: Long,
         @Valid @RequestBody patchBookRequest: PatchBookRequest,
     ): ResponseEntity<BookWithAuthorsResponse> {
-        // 更新するフィールドと値のマップを構築
         val updates = mutableMapOf<String, Any?>()
 
-        // titleがnullまたは空文字・空白でない場合のみマップに追加
         if (!patchBookRequest.title.isNullOrBlank()) {
             updates["title"] = patchBookRequest.title
         }
 
-        // priceがnullでない場合のみマップに追加
         if (patchBookRequest.price != null) {
             updates["price"] = patchBookRequest.price
         }
 
-        // publicationStatusがnullでない場合のみマップに追加
         if (patchBookRequest.publicationStatus != null) {
             updates["publicationStatus"] = patchBookRequest.publicationStatus
         }
 
-        // サービス層を呼び出し、更新された書籍データを取得
         val updatedBookWithAuthors = bookService.updateBook(id, updates, patchBookRequest.authorIds)
 
-        // 成功した場合、OKステータスと更新された書籍データを返す
         return ResponseEntity.ok(updatedBookWithAuthors)
     }
 }

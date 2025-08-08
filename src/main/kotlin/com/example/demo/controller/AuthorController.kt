@@ -17,38 +17,42 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+/**
+ * 著者関連APIを処理するコントローラクラス。
+ *
+ * @property authorService 著者データのビジネスロジックを担うサービス。
+ */
 @RestController
 @RequestMapping("/api/authors")
 class AuthorController(
     private val authorService: AuthorService,
 ) {
     /**
-     * 著者情報検索API
-     * 著者の情報と著作の一覧を取得する
+     * 著者情報検索API。
+     * 指定された著者IDに紐づく著者情報と著作の一覧を取得します。
      *
-     * @param authorId
-     * @return 成功時：AuthorWithBooksResponse,失敗時：ErrorResponse
+     * @param authorId 情報を取得したい著者のID。
+     * @return 成功時: `AuthorWithBooksResponse`、失敗時: `ErrorResponse`。
      */
     @GetMapping("/{authorId}/books")
     fun getBooksByAuthorId(
         @PathVariable authorId: Long,
     ): ResponseEntity<AuthorWithBooksResponse> {
-        // 検索処理の実行
         val result = authorService.getAuthorWithBooksResponse(authorId)
         return ResponseEntity.ok(result)
     }
 
     /**
-     * 著者情報登録API
+     * 著者情報登録API。
+     * 新規の著者情報を登録します。
      *
-     * @param registerAuthorRequest
-     * @return 成功時：AuthorResponse,失敗時：ErrorResponse
+     * @param registerAuthorRequest 登録する著者情報を含むリクエストDTO。
+     * @return 成功時: `AuthorResponse`、失敗時: `ErrorResponse`。
      */
     @PostMapping
     fun registerAuthor(
         @Valid @RequestBody registerAuthorRequest: RegisterAuthorRequest,
     ): ResponseEntity<AuthorResponse> {
-        // リクエストの格納
         val authorDto =
             AuthorDto(
                 id = null,
@@ -56,44 +60,39 @@ class AuthorController(
                 birthDate = registerAuthorRequest.birthDate!!,
             )
 
-        // 登録処理の実行
         val registeredAuthorResponse = authorService.registerAuthor(authorDto)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredAuthorResponse)
     }
 
     /**
-     * 著者情報登録API
+     * 著者情報更新API。
+     * 登録済みの著者情報を部分的に更新します。
      *
-     * @param authorId
-     * @return 成功時：AuthorResponse,失敗時：ErrorResponse
+     * @param authorId 更新したい著者のID。
+     * @param patchAuthorRequest 更新する情報を含むリクエストDTO。
+     * @return 成功時: `AuthorResponse`、失敗時: `ErrorResponse`。
      */
     @PatchMapping("/{authorId}")
     fun patchAuthor(
         @PathVariable authorId: Long,
         @RequestBody patchAuthorRequest: PatchAuthorRequest,
     ): ResponseEntity<AuthorResponse> {
-        // リクエストボディのIDがパスのIDと一致しない、または存在する場合はエラーとする
         require(
             patchAuthorRequest.id == null || patchAuthorRequest.id == authorId,
         ) { "ID in request body must be null or match path variable ID" }
 
-        // 更新するフィールドと値のマップを構築
         val updates = mutableMapOf<String, Any?>()
 
-        // nameがnullまたは空文字・空白でない場合のみマップに追加
         if (!patchAuthorRequest.name.isNullOrBlank()) {
             updates["name"] = patchAuthorRequest.name
         }
-        // birthDateがnullでない場合のみマップに追加
         if (patchAuthorRequest.birthDate != null) {
             updates["birthDate"] = patchAuthorRequest.birthDate
         }
 
-        // サービス層を呼び出し、更新された著者データを取得
         val updatedAuthorDto = authorService.partialUpdateAuthor(authorId, updates)
 
-        // レスポンスの格納
         val updatedAuthorResponse =
             AuthorResponse(
                 id = updatedAuthorDto.id,
