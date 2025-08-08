@@ -337,6 +337,55 @@ class BookControllerTest
         }
 
         @Test
+        fun `patchBook authorIdsが空リストの場合、著者関連の更新はスキップされ、他の項目は更新されること`() {
+            // Given
+            val bookId = 1L
+            val requestBody =
+                PatchBookRequest(
+                    title = "新しいタイトル",
+                    price = 2000,
+                    publicationStatus = null,
+                    authorIds = emptyList(), // 空のリスト
+                )
+
+            val existingBookResponse =
+                BookWithAuthorsResponse(
+                    id = bookId,
+                    title = "元のタイトル",
+                    price = 1000,
+                    publicationStatus = 0,
+                    authorIds = listOf(1L), // 元の著者ID
+                )
+
+            val expectedBookResponse =
+                existingBookResponse.copy(
+                    title = "新しいタイトル",
+                    price = 2000,
+                    authorIds = existingBookResponse.authorIds, // 著者IDは変更されない
+                )
+
+            val updatesMap = mapOf<String, Any?>("title" to "新しいタイトル", "price" to 2000)
+
+            // when
+            every { bookService.updateBook(eq(bookId), eq(updatesMap), eq(emptyList())) } returns expectedBookResponse
+
+            // Then
+            mockMvc
+                .perform(
+                    patch("/api/books/{id}", bookId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestBody)),
+                ).andExpect(status().isOk)
+                .andExpect { result ->
+                    val responseBody =
+                        objectMapper.readValue(result.response.contentAsString, BookWithAuthorsResponse::class.java)
+                    assertThat(responseBody).isEqualTo(expectedBookResponse)
+                }
+
+            verify(exactly = 1) { bookService.updateBook(eq(bookId), eq(updatesMap), eq(emptyList())) }
+        }
+
+        @Test
         fun `patchBook 空のリクエストボディで更新がスキップされ200が返されること`() {
             // Given
             val bookId = 1L

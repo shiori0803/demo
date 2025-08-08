@@ -351,4 +351,24 @@ class BookServiceTest {
         verify(exactly = 1) { authorRepository.existsAllByIds(newAuthorIds) }
         verify(exactly = 0) { bookRepository.updateBook(any(), any()) }
     }
+
+    @Test
+    fun `updateBook 重複するデータに更新しようとした場合、ItemAlreadyExistsExceptionをスローすること`() {
+        // Given
+        val updates = mapOf("title" to "Duplicate Book Title", "price" to 1000, "publicationStatus" to 1)
+
+        every { bookRepository.findById(bookId) } returns originalBookDto
+        every { bookRepository.updateBook(bookId, updates) } throws DataIntegrityViolationException("Duplicate key")
+
+        // When & Then
+        val exception =
+            assertThrows<ItemAlreadyExistsException> {
+                bookService.updateBook(bookId, updates, null)
+            }
+        assertThat(exception.itemType).isEqualTo("書籍")
+
+        // 検証
+        verify(exactly = 1) { bookRepository.findById(bookId) }
+        verify(exactly = 1) { bookRepository.updateBook(bookId, updates) }
+    }
 }

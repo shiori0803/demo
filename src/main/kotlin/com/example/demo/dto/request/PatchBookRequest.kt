@@ -3,7 +3,6 @@ package com.example.demo.dto.request
 import com.fasterxml.jackson.annotation.JsonInclude
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.Size
 
 /**
  * 書籍データ部分更新用リクエストDTO。
@@ -33,9 +32,5 @@ data class PatchBookRequest(
         message = "validation.publicationStatus",
     )
     val publicationStatus: Int?,
-    @field:Size(
-        min = 1,
-        message = "validation.authorIds.size.min",
-    )
     val authorIds: List<Long>?,
 )
