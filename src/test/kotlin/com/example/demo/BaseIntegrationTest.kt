@@ -10,7 +10,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
 
-// 'open'を付けると他のテストクラスが継承できる
+// openを付けると他のテストクラスが継承できる
 @SpringBootTest
 @Testcontainers
 open class BaseIntegrationTest {

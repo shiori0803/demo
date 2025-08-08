@@ -131,17 +131,6 @@ class AuthorRepositoryTest
         }
 
         /**
-         * データベースから全ての著者データを取得し、IDをnullにしてソートするヘルパー関数
-         */
-        private fun getAllAuthorsFromDbNormalized(): List<AuthorDto> {
-            return ctx
-                .selectFrom(AUTHORS)
-                .fetchInto(AuthorDto::class.java)
-                .map { it.copy(id = null) } // IDをnullにして比較対象から除外
-                .sortedBy { it.name + it.birthDate } // 比較のためソート
-        }
-
-        /**
          * データベースのレコード数を取得するヘルパー関数
          */
         private fun getAuthorCountInDb(): Long {

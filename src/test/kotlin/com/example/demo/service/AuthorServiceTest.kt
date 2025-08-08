@@ -204,7 +204,7 @@ class AuthorServiceTest {
     }
 
     @Test
-    fun `partialUpdateAuthor 更新件数が1件以上、しかしauthorRepositoryfindByIdで著者IDが取れずUnexpectedExceptionをスローする場合`() {
+    fun `partialUpdateAuthor 更新件数が1件以上だがその後の著者検索で結果が取れずUnexpectedExceptionをスローする場合`() {
         // Given
         val authorId = 1L
         val updates = mapOf("name" to "Updated Name")

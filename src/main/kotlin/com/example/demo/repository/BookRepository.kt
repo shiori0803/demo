@@ -8,7 +8,9 @@ import org.jooq.Field
 import org.springframework.stereotype.Repository
 
 /**
- * 書籍データ操作用リポジトリクラス
+ * 書籍データへのデータベースアクセスを担うリポジトリクラス。
+ *
+ * @property dslContext jOOQのDSLコンテキスト。
  */
 @Repository
 class BookRepository(
@@ -16,7 +18,8 @@ class BookRepository(
 ) {
     /**
      * 指定されたIDの書籍データを取得します。
-     * @param id 取得対象の書籍ID
+     *
+     * @param id 取得対象の書籍ID。
      * @return 指定されたIDの書籍データ。見つからない場合はnull。
      */
     fun findById(id: Long): BookDto? =
@@ -27,11 +30,11 @@ class BookRepository(
 
     /**
      * 新しい書籍データをデータベースに挿入し、挿入された書籍データを返します。
-     * @param bookDto 挿入する書籍データを含むDTO
+     *
+     * @param bookDto 挿入する書籍データを含むDTO。
      * @return 挿入された書籍データ。挿入に失敗した場合はnull。
      */
     fun insertBook(bookDto: BookDto): BookDto? {
-        // returning(BOOKS.ID) を使用して、自動生成されたIDを取得
         val record: BooksRecord? =
             dslContext
                 .insertInto(BOOKS)
@@ -40,23 +43,20 @@ class BookRepository(
                 .set(BOOKS.PUBLICATION_STATUS, bookDto.publicationStatus)
                 .returning()
                 .fetchOne()
-        // BooksRecordをAuthorDtoに変換して返却
         return record?.into(BookDto::class.java)
     }
 
     /**
      * 既存の書籍データを部分的に更新します (PATCHセマンティクス)。
-     * @param id 更新対象の書籍ID
-     * @param updates 更新するフィールド名と値のマップ。
-     * マップに存在しないフィールドは更新しません。
-     * マップに存在するが値がnullのフィールドは、DBの対応するカラムをnullに更新します（nullableなカラムの場合）。
-     * @return 更新されたレコード数
+     *
+     * @param id 更新対象の書籍ID。
+     * @param updates 更新するフィールド名と値のマップ。マップに存在しないフィールドは更新しません。
+     * @return 更新されたレコード数。
      */
     fun updateBook(
         id: Long,
         updates: Map<String, Any?>,
     ): Int {
-        // 更新するフィールドと値のマップをjOOQのFieldオブジェクトと値のペアに変換
         val jooqUpdateMap = mutableMapOf<Field<*>, Any?>()
 
         updates.forEach { (fieldName, value) ->
@@ -68,7 +68,6 @@ class BookRepository(
             }
         }
 
-        // jOOQのupdate().set(Map<Field<?>, ?>) を使用して、動的にSET句を構築
         return dslContext
             .update(BOOKS)
             .set(jooqUpdateMap)

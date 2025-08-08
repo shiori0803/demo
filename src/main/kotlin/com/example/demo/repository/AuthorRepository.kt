@@ -11,20 +11,27 @@ import org.jooq.Field
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
 
+/**
+ * 著者データへのデータベースアクセスを担うリポジトリクラス。
+ *
+ * @property dslContext jOOQのDSLコンテキスト。
+ */
 @Repository
 class AuthorRepository(
     private val dslContext: DSLContext,
 ) {
     /**
      * 指定されたIDの著者データを取得します。
-     * @param id 取得対象の著者ID
+     *
+     * @param id 取得対象の著者ID。
      * @return 指定されたIDの著者データ。見つからない場合はnull。
      */
     fun findById(id: Long): AuthorDto? = dslContext.selectFrom(AUTHORS).where(AUTHORS.ID.eq(id)).fetchOneInto(AuthorDto::class.java)
 
     /**
-     * 指定された著者IDに紐づく全ての書籍情報を取得します。
-     * @param authorId 取得する書籍情報の著者ID
+     * 指定された著者IDに紐づくすべての書籍情報を取得します。
+     *
+     * @param authorId 取得する書籍情報の著者ID。
      * @return 著者IDに紐づく書籍情報のリスト。見つからない場合は空のリスト。
      */
     fun findBooksByAuthorId(authorId: Long): List<BookDto> =
@@ -42,7 +49,8 @@ class AuthorRepository(
 
     /**
      * 新しい著者データをデータベースに挿入し、挿入された著者データを返します。
-     * @param authorDto 挿入する著者データを含むDTO
+     *
+     * @param authorDto 挿入する著者データを含むDTO。
      * @return 挿入された著者データ。挿入に失敗した場合はnull。
      */
     fun insertAuthor(authorDto: AuthorDto): AuthorDto? {
@@ -53,15 +61,15 @@ class AuthorRepository(
                 .set(AUTHORS.BIRTH_DATE, authorDto.birthDate)
                 .returning()
                 .fetchOne()
-        // AuthorsRecordをAuthorDtoに変換して返却
         return record?.into(AuthorDto::class.java)
     }
 
     /**
      * 既存の著者データを部分的に更新します (PATCHセマンティクス)。
-     * @param id 更新対象の著者ID
+     *
+     * @param id 更新対象の著者ID。
      * @param updates 更新するフィールド名と値のマップ。
-     * @return 更新されたレコード数
+     * @return 更新されたレコード数。
      */
     fun updateAuthor(
         id: Long,
@@ -89,9 +97,10 @@ class AuthorRepository(
     }
 
     /**
-     * 指定された著者IDのリストが何件DBに存在するかをチェックする
-     * @param authorIds 検索する著者IDのリスト
-     * @return 引数で渡された著者IDと合致するレコード件数
+     * 指定された著者IDのリストがデータベースに何件存在するかをチェックします。
+     *
+     * @param authorIds 検索する著者IDのリスト。
+     * @return 引数で渡された著者IDと合致するレコード件数。
      */
     fun existsAllByIds(authorIds: List<Long>): Long =
         dslContext

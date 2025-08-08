@@ -12,18 +12,20 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 
 /**
- * 著者データ操作用サービスクラス
+ * 著者データ操作のビジネスロジックを担うサービスクラス。
+ *
+ * @property authorRepository 著者データへのアクセスを担うリポジトリ。
  */
 @Service
 class AuthorService(
     private val authorRepository: AuthorRepository,
 ) {
     /**
-     * 指定された著者IDに紐づく全ての書籍情報と著者情報を取得
+     * 指定された著者IDに紐づくすべての書籍情報と著者情報を取得します。
      *
-     * @param authorId 取得対象の著者ID
-     * @return 著者情報と書籍リストを含むオブジェクト
-     * @throws ItemNotFoundException 指定された著者が見つからない場合
+     * @param authorId 取得対象の著者ID。
+     * @return 著者情報と書籍リストを含むオブジェクト。
+     * @throws ItemNotFoundException 指定された著者が見つからない場合。
      */
     fun getAuthorWithBooksResponse(authorId: Long): AuthorWithBooksResponse {
         val authorDto = authorRepository.findById(authorId)
@@ -54,14 +56,14 @@ class AuthorService(
     }
 
     /**
-     * 著者情報登録
+     * 著者情報を登録します。
      *
-     * @param authorDto 著者情報格納オブジェクト
-     * @return 登録済みの著者情報
-     * @throws ItemAlreadyExistsException 同一の著者が既に登録されている場合
+     * @param authorDto 登録する著者情報を含むDTO。
+     * @return 登録された著者情報を含むレスポンスDTO。
+     * @throws ItemAlreadyExistsException 同一の著者が既に登録されている場合。
+     * @throws IllegalStateException 登録に失敗した場合。
      */
     fun registerAuthor(authorDto: AuthorDto): AuthorResponse {
-        // authorテーブルへのデータ登録
         val insertedAuthorDto =
             try {
                 authorRepository.insertAuthor(authorDto)
@@ -69,7 +71,6 @@ class AuthorService(
                 throw ItemAlreadyExistsException(itemType = "著者")
             } ?: throw IllegalStateException("登録した著者情報が見つかりません。")
 
-        // 新しいレスポンスDTOを構築して登録結果を返す
         return AuthorResponse(
             id = insertedAuthorDto.id,
             name = insertedAuthorDto.name,
@@ -78,18 +79,19 @@ class AuthorService(
     }
 
     /**
-     * 既存の著者データを部分的に更新し、更新後の著者情報を取得します。
-     * @param id 更新対象の著者ID
-     * @param updates 更新するフィールド名と値のマップ
-     * @return 更新後の著者情報
-     * @throws AuthorNotFoundException 指定された著者が見つからない場合
+     * 既存の著者データを部分的に更新します (PATCHセマンティクス)。
+     *
+     * @param id 更新対象の著者ID。
+     * @param updates 更新するフィールド名と値のマップ。
+     * @return 更新後の著者情報を含むDTO。
+     * @throws IllegalArgumentException 更新する項目が空の場合。
+     * @throws ItemNotFoundException 指定された著者IDが見つからない場合。
+     * @throws UnexpectedException データベースの更新後にデータが取得できないという予期せぬ事態が発生した場合。
      */
     fun partialUpdateAuthor(
         id: Long,
         updates: Map<String, Any?>,
     ): AuthorDto {
-        // 更新する項目がない場合は、IllegalArgumentExceptionをスロー
-        // この仕様はこのAPIの仕様（ビジネスロジック）なのでServiceクラスに実装
         if (updates.isEmpty()) {
             throw IllegalArgumentException("error.nothing.update")
         }
@@ -97,7 +99,6 @@ class AuthorService(
         val updatedCount = authorRepository.updateAuthor(id, updates)
 
         if (updatedCount > 0) {
-            // ここでUnexpectedExceptionになるのは、登録処理後に登録した著者IDが取得できないというイレギュラーな場合
             return authorRepository.findById(id) ?: throw UnexpectedException(
                 message = "著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。",
             )
