@@ -174,32 +174,59 @@ class AuthorServiceTest {
         // Given
         val authorId = 1L
         val updates = mapOf("name" to "Updated Name")
-        val updatedAuthorDto = AuthorDto(id = authorId, name = "Updated Name", birthDate = LocalDate.now())
+        val existingAuthorDto = AuthorDto(id = authorId, name = "Initial Name", birthDate = LocalDate.now())
+        val updatedAuthorDto = existingAuthorDto.copy(name = "Updated Name")
+        val expectedResponse = AuthorResponse(id = authorId, name = "Updated Name", birthDate = LocalDate.now())
 
         // When
+        every { authorRepository.findById(authorId) } returns existingAuthorDto andThen updatedAuthorDto
         every { authorRepository.updateAuthor(authorId, updates) } returns 1
-        every { authorRepository.findById(authorId) } returns updatedAuthorDto
 
         val result = authorService.partialUpdateAuthor(authorId, updates)
 
         // Then
-        assertThat(result).isEqualTo(updatedAuthorDto)
+        assertThat(result).isEqualTo(expectedResponse)
         verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
-        verify(exactly = 1) { authorRepository.findById(authorId) }
+        verify(exactly = 2) { authorRepository.findById(authorId) }
     }
 
     @Test
-    fun `partialUpdateAuthor updatesマップが空でIllegalArgumentExceptionをスローする場合`() {
+    fun `partialUpdateAuthor updatesマップが空の場合に更新がスキップされ、既存のデータが返却されること`() {
         // Given
         val authorId = 1L
         val updates = emptyMap<String, Any?>()
+        val existingAuthorDto = AuthorDto(id = authorId, name = "Existing Name", birthDate = LocalDate.of(2000, 1, 1))
+        val expectedResponse =
+            AuthorResponse(id = authorId, name = "Existing Name", birthDate = LocalDate.of(2000, 1, 1))
+
+        // When
+        every { authorRepository.findById(authorId) } returns existingAuthorDto
+
+        val result = authorService.partialUpdateAuthor(authorId, updates)
+
+        // Then
+        assertThat(result).isEqualTo(expectedResponse)
+        verify(exactly = 1) { authorRepository.findById(authorId) }
+        verify(exactly = 0) { authorRepository.updateAuthor(any(), any()) }
+    }
+
+    @Test
+    fun `partialUpdateAuthor 更新件数が0件以下でItemNotFoundExceptionをスローする場合`() {
+        // Given
+        val nonExistentId = 999L
+        val updates = mapOf("name" to "Updated Name")
+
+        // 存在しないIDの場合、findById()がnullを返すように設定
+        every { authorRepository.findById(nonExistentId) } returns null
 
         // When & Then
         val exception =
-            assertThrows<IllegalArgumentException> {
-                authorService.partialUpdateAuthor(authorId, updates)
+            assertThrows<ItemNotFoundException> {
+                authorService.partialUpdateAuthor(nonExistentId, updates)
             }
-        assertThat(exception.message).isEqualTo("error.nothing.update")
+        assertThat(exception.itemType).isEqualTo("著者ID")
+        assertThat(exception.message).isEqualTo("error.item.not.found")
+        verify(exactly = 1) { authorRepository.findById(nonExistentId) }
         verify(exactly = 0) { authorRepository.updateAuthor(any(), any()) }
     }
 
@@ -208,10 +235,11 @@ class AuthorServiceTest {
         // Given
         val authorId = 1L
         val updates = mapOf("name" to "Updated Name")
+        val existingAuthorDto = AuthorDto(id = authorId, name = "Initial Name", birthDate = LocalDate.now())
 
         // When
+        every { authorRepository.findById(authorId) } returns existingAuthorDto andThen null
         every { authorRepository.updateAuthor(authorId, updates) } returns 1
-        every { authorRepository.findById(authorId) } returns null
 
         // Then
         val exception =
@@ -220,26 +248,6 @@ class AuthorServiceTest {
             }
         assertThat(exception.message).isEqualTo("著者情報更新APIにて著者データの登録が完了しましたが、著者IDが取得できません。")
         verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
-        verify(exactly = 1) { authorRepository.findById(authorId) }
-    }
-
-    @Test
-    fun `partialUpdateAuthor 更新件数が0件以下でItemNotFoundExceptionをスローする場合`() {
-        // Given
-        val authorId = 999L
-        val updates = mapOf("name" to "Updated Name")
-
-        // When
-        every { authorRepository.updateAuthor(authorId, updates) } returns 0
-
-        // Then
-        val exception =
-            assertThrows<ItemNotFoundException> {
-                authorService.partialUpdateAuthor(authorId, updates)
-            }
-        assertThat(exception.itemType).isEqualTo("著者ID")
-        assertThat(exception.message).isEqualTo("error.item.not.found")
-        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
-        verify(exactly = 0) { authorRepository.findById(any()) }
+        verify(exactly = 2) { authorRepository.findById(authorId) }
     }
 }
