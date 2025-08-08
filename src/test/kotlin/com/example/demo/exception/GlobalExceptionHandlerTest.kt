@@ -43,14 +43,14 @@ class GlobalExceptionHandlerTest {
                 any<Array<Any>>(),
                 any<Locale>(),
             )
-        } answers { "指定された" + (it.invocation.args[1] as Array<Any>)[0] + "が見つかりません。" }
+        } answers { "指定された" + (it.invocation.args[1] as Array<*>)[0] + "が見つかりません。" }
         every {
             mockMessageSource.getMessage(
                 eq("error.item.already.exists"),
                 any<Array<Any>>(),
                 any<Locale>(),
             )
-        } answers { "この" + (it.invocation.args[1] as Array<Any>)[0] + "は既に登録されています。" }
+        } answers { "この" + (it.invocation.args[1] as Array<*>)[0] + "は既に登録されています。" }
         every {
             mockMessageSource.getMessage(
                 eq("validation.invalid.argument.generic"),

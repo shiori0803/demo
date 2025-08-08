@@ -65,7 +65,6 @@ class AuthorControllerTest
             @JvmStatic
             fun partialUpdateTestData(): Stream<Arguments> {
                 val originalAuthorDto = AuthorDto(id = 1L, name = "Original Name", birthDate = LocalDate.of(2000, 1, 1))
-                val updatedAuthorDto = AuthorDto(id = 1L, name = "Updated Name", birthDate = LocalDate.of(1990, 1, 1))
                 val updatedAuthorResponse =
                     AuthorResponse(id = 1L, name = "Updated Name", birthDate = LocalDate.of(1990, 1, 1))
 
