@@ -250,4 +250,33 @@ class AuthorServiceTest {
         verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
         verify(exactly = 2) { authorRepository.findById(authorId) }
     }
+
+    @Test
+    fun `partialUpdateAuthor 重複する著者データに更新しようとした際にItemAlreadyExistsExceptionがスローされること`() {
+        // Given
+        val authorId = 1L
+        val existingAuthorDto = AuthorDto(id = authorId, name = "Test Author", birthDate = LocalDate.of(2000, 1, 1))
+        val updates = mapOf("name" to "Duplicate Name", "birthDate" to LocalDate.of(1990, 1, 1))
+
+        // When
+        // findByIdは既存の著者データを返す
+        every { authorRepository.findById(authorId) } returns existingAuthorDto
+        // updateAuthorがDataIntegrityViolationExceptionをスローするように設定
+        every {
+            authorRepository.updateAuthor(
+                authorId,
+                updates,
+            )
+        } throws DataIntegrityViolationException("Duplicate entry for author")
+
+        // Then
+        val exception =
+            assertThrows<ItemAlreadyExistsException> {
+                authorService.partialUpdateAuthor(authorId, updates)
+            }
+        assertThat(exception.itemType).isEqualTo("著者")
+        assertThat(exception.message).isEqualTo("error.item.already.exists")
+        verify(exactly = 1) { authorRepository.findById(authorId) }
+        verify(exactly = 1) { authorRepository.updateAuthor(authorId, updates) }
+    }
 }

@@ -146,7 +146,10 @@ open class BookService(
         }
 
         if (updates.isNotEmpty()) {
-            val updatedCount = bookRepository.updateBook(id, updates)
+            val updatedCount =
+                wrapDataIntegrityViolationException(itemType = "書籍") {
+                    bookRepository.updateBook(id, updates)
+                }
             if (updatedCount == 0) {
                 throw ItemNotFoundException(itemType = "書籍ID")
             }

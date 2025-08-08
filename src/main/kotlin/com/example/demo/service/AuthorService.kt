@@ -101,7 +101,12 @@ class AuthorService(
             )
         }
 
-        val updatedCount = authorRepository.updateAuthor(id, updates)
+        val updatedCount =
+            try {
+                authorRepository.updateAuthor(id, updates)
+            } catch (e: DataIntegrityViolationException) {
+                throw ItemAlreadyExistsException(itemType = "著者")
+            }
 
         return if (updatedCount > 0) {
             val updatedAuthorDto =
